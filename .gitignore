@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data & trained weights (too large for git — see data/README.md)
+data/raw/
+data/dataset/
+*.keras
+*.h5
+*.pt
+!models/.gitkeep
+
+# Logs
+logs/
+runs/
+.tensorboard/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Secrets
+kaggle.json
+.env

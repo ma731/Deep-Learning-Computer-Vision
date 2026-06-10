@@ -1,0 +1,24 @@
+# Core DL (course framework)
+tensorflow>=2.16,<2.20
+
+# Detection + tracking (CV course labs)
+ultralytics>=8.2
+
+# Image processing
+opencv-python>=4.9
+pillow
+numpy
+matplotlib
+
+# Metrics / data
+scikit-learn
+pandas
+
+# Backend
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Notebooks
+jupyter
+kaggle  # dataset download (needs ~/.kaggle/kaggle.json)
