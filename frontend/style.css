@@ -17,6 +17,8 @@
   --amber-dim: #3a2f10;
   --red: #ef4444;
   --red-dim: #3a1717;
+  --review: #818cf8;
+  --review-dim: #232544;
   --accent: #22c55e;
 
   --radius: 16px;
@@ -206,17 +208,20 @@ video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; objec
 .verdict.sell_soon .verdict-label { color: var(--amber); }
 .verdict.reject { border-left-color: var(--red); background: linear-gradient(100deg, var(--red-dim), transparent 60%); }
 .verdict.reject .verdict-label { color: var(--red); }
+.verdict.review { border-left-color: var(--review); background: linear-gradient(100deg, var(--review-dim), transparent 60%); }
+.verdict.review .verdict-label { color: var(--review); }
 
 .metric-card { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.15rem; background: linear-gradient(150deg, var(--surface-2), var(--surface)); }
 .metric-eyebrow { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-2); }
 .metric-value { font-size: 2rem; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .metric-foot { font-size: 0.75rem; color: var(--muted); }
 
-.counts-card { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0.85rem 0.6rem; }
+.counts-card { display: grid; grid-template-columns: repeat(5, 1fr); padding: 0.85rem 0.5rem; gap: 0.2rem; }
 .count { text-align: center; }
-.count b { display: block; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.count span { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
-.count.ok b { color: var(--green); } .count.warn b { color: var(--amber); } .count.bad b { color: var(--red); }
+.count b { display: block; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.count span { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-2); }
+.count.ok b { color: var(--green); } .count.warn b { color: var(--amber); }
+.count.bad b { color: var(--red); } .count.review b { color: var(--review); }
 
 .details { padding: 0.9rem 1.05rem; display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 0.8rem; font-size: 0.85rem; }
 .details:empty { display: none; }

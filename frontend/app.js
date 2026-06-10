@@ -22,6 +22,7 @@ const TIERS = {
   fresh:     { color: "#22c55e", text: "FRESH" },
   sell_soon: { color: "#f5b53d", text: "SELL SOON" },
   reject:    { color: "#ef4444", text: "REJECT" },
+  review:    { color: "#818cf8", text: "NEEDS REVIEW" },
   untrained: { color: "#61748c", text: "MODEL NOT TRAINED" },
 };
 
@@ -154,17 +155,21 @@ function render(data) {
   } else {
     const m = dets.reduce((a, b) => area(a) >= area(b) ? a : b);
     const s = TIERS[m.tier] || TIERS.untrained;
-    setVerdict(m.tier, s.text, m.action || m.note || "");
+    const sub = m.tier === "review"
+      ? `low confidence — flagged for human review`
+      : (m.action || m.note || "");
+    setVerdict(m.tier, s.text, sub);
     $("details").innerHTML = [
       ["Item", m.fruit],
       ["Detector conf.", pct(m.det_conf)],
       ["Grade conf.", pct(m.confidence)],
+      m.tier === "review" ? ["Would guess", (m.tier_raw || "—").replace("_", " ")] : null,
       ["Rot probability", pct(m.rotten_prob)],
       ["Decay surface", pct(m.severity)],
       ["Unit price", m.unit_price != null ? "€" + m.unit_price.toFixed(2) : "—"],
       ["Recoverable", m.recovered ? "€" + m.recovered.toFixed(2) : "—"],
       ["Detector ↔ model", m.fruit_agreement == null ? "—" : (m.fruit_agreement ? "agree" : "⚠ differ")],
-    ].map(([k, v]) => `<dt>${k}</dt><dd>${v ?? "—"}</dd>`).join("");
+    ].filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v ?? "—"}</dd>`).join("");
     if (m.heatmap_png) { $("heatmap-img").src = `data:image/png;base64,${m.heatmap_png}`; $("heatmap-box").hidden = false; }
   }
 
@@ -173,6 +178,7 @@ function render(data) {
     $("c-fresh").textContent = data.session.fresh;
     $("c-sellsoon").textContent = data.session.sell_soon;
     $("c-reject").textContent = data.session.reject;
+    $("c-review").textContent = data.session.review || 0;
     animateMoney(data.session.recovered_eur || 0);
   }
 }

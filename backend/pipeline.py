@@ -18,15 +18,19 @@ import numpy as np
 
 from gradcam import gradcam_heatmap, overlay_heatmap
 
-MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
+REPO_DIR = Path(__file__).resolve().parent.parent
+MODELS_DIR = REPO_DIR / "models"
 CLASSIFIER_PATH = MODELS_DIR / "freshguard_mobilenetv2.keras"
 CLASS_NAMES_PATH = MODELS_DIR / "class_names.json"
+REVIEW_DIR = REPO_DIR / "data" / "review_queue"      # saved crops awaiting review
+REVIEW_LOG = MODELS_DIR / "review_queue.jsonl"        # one json line per flagged item
 
 # COCO class ids for the produce our pilot supports (all detected zero-shot)
 COCO_FRUIT = {46: "banana", 47: "apple", 49: "orange", 51: "carrot"}
 IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
+CONFIDENCE_TAU = 0.70       # below this top-class confidence → abstain ("review")
 
 # Overridden at load time by models/class_names.json (training export).
 DEFAULT_CLASSES = ["fresh_apple", "fresh_banana", "fresh_orange", "fresh_carrot",
@@ -97,6 +101,7 @@ class FreshGuardPipeline:
             lambda: deque(maxlen=SMOOTH_WINDOW))
         self.session_counts: dict[int, str] = {}
         self.session_value: dict[int, float] = {}  # € recovered per track id
+        self.queued_ids: set[int] = set()          # track ids already sent to review
 
     @property
     def model_loaded(self) -> bool:
@@ -106,6 +111,23 @@ class FreshGuardPipeline:
         self.track_history.clear()
         self.session_counts.clear()
         self.session_value.clear()
+        self.queued_ids.clear()
+
+    def _enqueue_review(self, crop_bgr: np.ndarray, det: dict, track_id: int):
+        """Save the crop + log one row so the item can be re-labeled and folded
+        into the next training run (active learning). Deduped per track id."""
+        REVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        fname = f"{det['fruit']}_{track_id}.jpg"
+        cv2.imwrite(str(REVIEW_DIR / fname), crop_bgr)
+        row = {
+            "image": fname,
+            "fruit": det["fruit"],
+            "tier_raw": det.get("tier_raw"),
+            "confidence": det.get("confidence"),
+            "rotten_prob": det.get("rotten_prob"),
+        }
+        with open(REVIEW_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
 
     # ---------------- stage 2 helpers ----------------
 
@@ -127,13 +149,20 @@ class FreshGuardPipeline:
             tier = "sell_soon"
         else:
             tier = "fresh"
+        # confidence gate: if the model isn't sure enough, abstain rather than
+        # guess — the item is flagged for human review (active-learning loop).
+        confidence = float(softmax[idx])
+        tier_raw = tier  # what it *would* have called it (for the deck/debug)
+        if confidence < CONFIDENCE_TAU:
+            tier = "review"
         # integrity check: detector and classifier should agree on the fruit
         agree = yolo_fruit in label
         return {
             "label": label,
             "tier": tier,
+            "tier_raw": tier_raw,
             "rotten_prob": round(rotten_prob, 3),
-            "confidence": round(float(softmax[idx]), 3),
+            "confidence": round(confidence, 3),
             "fruit_agreement": agree,
         }
 
@@ -181,6 +210,11 @@ class FreshGuardPipeline:
                     if track_id is not None:
                         self.session_counts[track_id] = det["tier"]
                         self.session_value[track_id] = det["recovered"]
+                        # active learning: queue low-confidence items once each
+                        if det["tier"] == "review" and track_id not in self.queued_ids:
+                            self.queued_ids.add(track_id)
+                            if crop.size > 0:
+                                self._enqueue_review(crop, det, track_id)
                 else:
                     det.update({"label": None, "tier": "untrained",
                                 "note": "classifier not trained yet — run notebook 02"})
@@ -204,6 +238,7 @@ class FreshGuardPipeline:
                 "fresh": tiers.count("fresh"),
                 "sell_soon": tiers.count("sell_soon"),
                 "reject": tiers.count("reject"),
+                "review": tiers.count("review"),
                 "recovered_eur": round(sum(self.session_value.values()), 2),
             }
         return out

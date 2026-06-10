@@ -6,6 +6,7 @@ Then open http://localhost:8000
 """
 
 import io
+import json
 
 import numpy as np
 from fastapi import FastAPI, File, Query, UploadFile
@@ -51,6 +52,30 @@ async def predict(file: UploadFile = File(...),
 def reset_session():
     pipeline.reset_session()
     return {"status": "reset"}
+
+
+@app.get("/api/review_queue")
+def review_queue():
+    """Items the model abstained on (low confidence) — the active-learning
+    queue. These get re-labeled and folded into the next training run."""
+    from pipeline import REVIEW_LOG
+    rows = []
+    if REVIEW_LOG.exists():
+        for line in REVIEW_LOG.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                rows.append(json.loads(line))
+    return {"count": len(rows), "items": rows[-12:]}
+
+
+@app.post("/api/review_queue/clear")
+def review_queue_clear():
+    from pipeline import REVIEW_LOG, REVIEW_DIR
+    if REVIEW_LOG.exists():
+        REVIEW_LOG.unlink()
+    if REVIEW_DIR.exists():
+        for p in REVIEW_DIR.glob("*.jpg"):
+            p.unlink()
+    return {"status": "cleared"}
 
 
 @app.get("/api/forecast")
