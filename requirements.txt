@@ -10,9 +10,10 @@ pillow
 numpy
 matplotlib
 
-# Metrics / data
+# Metrics / data / eval (notebook 02b)
 scikit-learn
 pandas
+seaborn  # confusion-matrix heatmap in evaluation
 
 # Backend
 fastapi

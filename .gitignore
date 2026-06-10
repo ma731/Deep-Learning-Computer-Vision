@@ -16,6 +16,8 @@ field_test/
 # ...but DO commit the trained models and a few sample images so the repo runs.
 !models/*.keras
 !data/sample_images/**
+# eval byproduct (config-cleaned copy from notebook 02b's loader workaround)
+models/freshguard_fixed.keras
 
 # Logs
 logs/
