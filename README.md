@@ -38,6 +38,21 @@ fine-tuned CNN classifier. YOLO is an off-the-shelf preprocessing component.
 The project exercises **all three permitted architectures**: ANN (baseline +
 classifier head), CNN (core model), RNN/LSTM (spoilage forecast).
 
+## Results — the architecture ablation
+
+We don't just claim a CNN is right; we prove it on our own 8-class data
+(test set = 2,337 held-out images):
+
+| Model | Test accuracy | Parameters | Why |
+|---|---|---|---|
+| ANN (flattened pixels) | **41.2%** | 14.3M | No spatial structure — most params, worst result |
+| CNN from scratch | **77.6%** | 8.5M | Learns spatial features; limited by dataset size |
+| **MobileNetV2 transfer learning** | **97.1%** | **2.6M** | ImageNet features + fine-tuning — best accuracy, fewest params |
+
+The staircase (41 → 78 → 97) *is* the architectural justification: the
+transfer-learning model is **2.4× more accurate than the ANN with 5.5× fewer
+parameters.** Curves + comparison chart in `docs/figures/`.
+
 ## Quick start
 
 ```bash
