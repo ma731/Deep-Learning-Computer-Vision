@@ -5,13 +5,17 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Data & trained weights (too large for git — see data/README.md)
+# Raw/full datasets are too large for git (download via scripts/build_dataset.py).
+# A small curated sample lives in data/sample_images/ and IS committed.
 data/raw/
 data/dataset/
-*.keras
+field_test/
 *.h5
 *.pt
-!models/.gitkeep
+*.keras
+# ...but DO commit the trained models and a few sample images so the repo runs.
+!models/*.keras
+!data/sample_images/**
 
 # Logs
 logs/

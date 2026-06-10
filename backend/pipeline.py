@@ -22,14 +22,15 @@ MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 CLASSIFIER_PATH = MODELS_DIR / "freshguard_mobilenetv2.keras"
 CLASS_NAMES_PATH = MODELS_DIR / "class_names.json"
 
-# COCO class ids for the fruit our pilot supports
-COCO_FRUIT = {46: "banana", 47: "apple", 49: "orange"}
+# COCO class ids for the produce our pilot supports (all detected zero-shot)
+COCO_FRUIT = {46: "banana", 47: "apple", 49: "orange", 51: "carrot"}
 IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 
-DEFAULT_CLASSES = ["freshapples", "freshbanana", "freshoranges",
-                   "rottenapples", "rottenbanana", "rottenoranges"]
+# Overridden at load time by models/class_names.json (training export).
+DEFAULT_CLASSES = ["fresh_apple", "fresh_banana", "fresh_orange", "fresh_carrot",
+                   "rotten_apple", "rotten_banana", "rotten_orange", "rotten_carrot"]
 
 
 def _b64_png(img_bgr: np.ndarray) -> str:
