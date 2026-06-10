@@ -164,6 +164,8 @@ function render(data) {
       ["Detector confidence", fmtPct(main.det_conf)],
       ["Grade confidence", fmtPct(main.confidence)],
       ["Rot probability", fmtPct(main.rotten_prob)],
+      ["Decay surface area", fmtPct(main.severity)],
+      ["Price action", main.action ?? "—"],
       ["Detector ↔ classifier agree", main.fruit_agreement == null ? "—" : (main.fruit_agreement ? "yes" : "no ⚠")],
     ].map(([k, v]) => `<dt>${k}</dt><dd>${v ?? "—"}</dd>`).join("");
     if (main.heatmap_png) {

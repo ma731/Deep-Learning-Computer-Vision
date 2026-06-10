@@ -72,17 +72,18 @@ path = kagglehub.dataset_download("sriramr/fruits-fresh-and-rotten-for-classific
 |---|---|---|
 | **Marco Ortiz Togashi** (@ma731) | **Project coordinator** — across all workstreams; reviews every PR | MVP integration (backend + frontend), repo, demo rig |
 | **Yaxin Wu** | Core model lead | Notebook 02 — ANN/CNN/transfer-learning ablation: architecture choices, training, fine-tuning |
-| **Jorge Vildoso** | Evaluation & explainability lead | Notebook 02 — metrics, ROC-AUC, confusion matrix, overfitting evidence, Grad-CAM gallery |
-| **Batao** | Data & preprocessing | Notebook 01 — EDA + CV preprocessing showcase |
-| **BigBossBass** | Forecasting lead | Notebook 03 — LSTM spoilage forecast |
+| **BigBossBass** | Evaluation & explainability lead | Notebook 02 — metrics, ROC-AUC, confusion matrix, overfitting evidence, Grad-CAM gallery, domain-shift study |
+| **Jorge Vildoso** | Forecasting lead | Notebook 03 — LSTM spoilage forecast + dashboard verification |
+| **Batao** | Data & preprocessing | Notebook 01 — EDA + CV preprocessing showcase + real-fruit field test set |
 | *Everyone* | Deck & pitch | Each member presents their own workstream (all must speak) |
 
 Workflow: branch from `main`, open a PR, @ma731 reviews and merges. The
 backend is built and frozen — **each notebook must export exactly the
 artifact files listed below; that's the integration contract.**
 
-Notebook 02 split: **Yaxin** owns sections 1–3 (the three models), **Jorge**
-owns the evaluation + Grad-CAM sections — same notebook, coordinate on branch.
+Notebook 02 split: **Yaxin** owns sections 1–3 (the three models),
+**BigBossBass** owns the evaluation + Grad-CAM + domain-shift sections —
+same notebook, coordinate on branch.
 
 ### Notebook 01 — `notebooks/01_data_exploration_preprocessing.ipynb`
 *Template: CV Session 2 labs (`1_IntroductionToImages`, `2_Histogram_Filters`).*

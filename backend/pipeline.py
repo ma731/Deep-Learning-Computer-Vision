@@ -37,6 +37,35 @@ def _b64_png(img_bgr: np.ndarray) -> str:
     return base64.b64encode(buf).decode() if ok else ""
 
 
+def rot_area_fraction(crop_bgr: np.ndarray) -> float:
+    """Estimate the fraction of fruit surface showing decay discoloration.
+
+    Classic CV (course session 2) in production: dark/brown regions are
+    low-value, low-to-mid-saturation pixels in HSV space. Used to convert
+    the classifier's verdict into a markdown *amount*.
+    """
+    hsv = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+    # decay: dark patches OR desaturated brownish patches
+    dark = v < 70
+    brown = (h < 30) & (s > 60) & (v < 140)
+    mask = (dark | brown).astype(np.uint8)
+    # clean speckle noise so shadows don't read as rot
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    return float(mask.mean())
+
+
+def markdown_recommendation(tier: str, severity: float) -> str:
+    """Business decision: price action from grade + decay severity."""
+    if tier == "fresh":
+        return "full price"
+    if tier == "sell_soon":
+        return "markdown −40% (last day)" if severity > 0.25 else "markdown −20%"
+    if tier == "reject":
+        return "remove — donate if edible (Law 1/2025)"
+    return "—"
+
+
 class FreshGuardPipeline:
     def __init__(self):
         from ultralytics import YOLO  # deferred: first call downloads weights
@@ -127,6 +156,9 @@ class FreshGuardPipeline:
                         self.track_history[track_id].append(softmax)
                         softmax = np.mean(self.track_history[track_id], axis=0)
                     det.update(self._grade(softmax, fruit))
+                    severity = rot_area_fraction(crop)
+                    det["severity"] = round(severity, 3)
+                    det["action"] = markdown_recommendation(det["tier"], severity)
                     if track_id is not None:
                         self.session_counts[track_id] = det["tier"]
                 else:
