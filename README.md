@@ -18,11 +18,11 @@ inspector: catch decay a day earlier, mark it down instead of binning it.
 
 ```
 camera frame ──▶ Stage 1: YOLOv8n (pretrained, COCO)          [backend/pipeline.py]
-                  └─ detects & tracks banana / apple / orange
-                     │ crop per fruit
+                  └─ detects & tracks banana / apple / orange / carrot
+                     │ crop per item
                      ▼
                  Stage 2: MobileNetV2 (OUR model, fine-tuned)  [notebook 02 → models/]
-                  └─ 6-class softmax → fresh / sell-soon / reject
+                  └─ 8-class softmax → fresh / sell-soon / reject
                      │
                      ├─ Grad-CAM heatmap (explainability)      [backend/gradcam.py]
                      └─ majority vote over tracked frames (stable demo)
@@ -56,13 +56,22 @@ must be served over HTTPS (iOS camera requirement) — use `ngrok http 8000`.
 
 ## Dataset
 
-[Kaggle: Fruits fresh and rotten for classification](https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification)
-(~13k images, 6 classes: fresh/rotten × apples/banana/oranges).
+[Kaggle: Fruit and Vegetable Disease (Healthy vs Rotten)](https://www.kaggle.com/datasets/muhammad0subhan/fruit-and-vegetable-disease-healthy-vs-rotten).
+We use the four **COCO-detectable** produce types (so Stage-1 YOLO works
+zero-shot) → **8 classes**, fresh/rotten × {apple, banana, orange, **carrot**}.
+~15.6k images; an 85/15 train/test split → 13,281 train / 2,337 test.
 
-```python
-import kagglehub
-path = kagglehub.dataset_download("sriramr/fruits-fresh-and-rotten-for-classification")
+Carrot crosses the pilot from fruit into vegetables. Broccoli is the only
+other COCO-detectable produce but lacks a clean rotten dataset, so it's left
+to the roadmap.
+
+```bash
+python scripts/build_dataset.py   # downloads + builds data/dataset/{train,test}/
+python scripts/train_models.py    # trains the 3 models, exports to models/
 ```
+
+A small curated `data/sample_images/` (4 per class) is committed so the repo
+is browsable without the full download.
 
 ---
 
@@ -124,7 +133,8 @@ classification_report, fresh-vs-rotten **ROC-AUC**, Grad-CAM samples.
 - **Exports (exact paths, backend reads these):**
   - `models/freshguard_mobilenetv2.keras`
   - `models/class_names.json` — list ordered by `train_gen.class_indices`, e.g.
-    `["freshapples","freshbanana","freshoranges","rottenapples","rottenbanana","rottenoranges"]`
+    `["fresh_apple","fresh_banana","fresh_carrot","fresh_orange","rotten_apple", ...]`
+    (rotten names must start with `rotten`; each name contains the COCO word)
 
 ### Notebook 03 — `notebooks/03_lstm_spoilage_forecast.ipynb`
 *Template: Conchita's RNN/forecasting session.*

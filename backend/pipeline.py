@@ -22,14 +22,15 @@ MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 CLASSIFIER_PATH = MODELS_DIR / "freshguard_mobilenetv2.keras"
 CLASS_NAMES_PATH = MODELS_DIR / "class_names.json"
 
-# COCO class ids for the fruit our pilot supports
-COCO_FRUIT = {46: "banana", 47: "apple", 49: "orange"}
+# COCO class ids for the produce our pilot supports (all detected zero-shot)
+COCO_FRUIT = {46: "banana", 47: "apple", 49: "orange", 51: "carrot"}
 IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 
-DEFAULT_CLASSES = ["freshapples", "freshbanana", "freshoranges",
-                   "rottenapples", "rottenbanana", "rottenoranges"]
+# Overridden at load time by models/class_names.json (training export).
+DEFAULT_CLASSES = ["fresh_apple", "fresh_banana", "fresh_orange", "fresh_carrot",
+                   "rotten_apple", "rotten_banana", "rotten_orange", "rotten_carrot"]
 
 
 def _b64_png(img_bgr: np.ndarray) -> str:
@@ -66,6 +67,20 @@ def markdown_recommendation(tier: str, severity: float) -> str:
     return "—"
 
 
+# Typical EU unit retail price per item (€) — for the live "money recovered" demo.
+UNIT_PRICE = {"apple": 0.40, "banana": 0.25, "orange": 0.50, "carrot": 0.15}
+RECOVERY_RATE = 0.60  # a marked-down "sell soon" item recovers ~60% of its price
+
+
+def recovered_value(tier: str, fruit: str) -> float:
+    """€ recovered vs. the counterfactual where decay is caught too late and
+    the item is binned. 'sell soon' items are the recoverable margin; fresh
+    items would have sold anyway (0), rejects are already lost (0)."""
+    if tier == "sell_soon":
+        return round(UNIT_PRICE.get(fruit, 0.30) * RECOVERY_RATE, 2)
+    return 0.0
+
+
 class FreshGuardPipeline:
     def __init__(self):
         from ultralytics import YOLO  # deferred: first call downloads weights
@@ -81,6 +96,7 @@ class FreshGuardPipeline:
         self.track_history: dict[int, deque] = defaultdict(
             lambda: deque(maxlen=SMOOTH_WINDOW))
         self.session_counts: dict[int, str] = {}
+        self.session_value: dict[int, float] = {}  # € recovered per track id
 
     @property
     def model_loaded(self) -> bool:
@@ -89,6 +105,7 @@ class FreshGuardPipeline:
     def reset_session(self):
         self.track_history.clear()
         self.session_counts.clear()
+        self.session_value.clear()
 
     # ---------------- stage 2 helpers ----------------
 
@@ -159,8 +176,11 @@ class FreshGuardPipeline:
                     severity = rot_area_fraction(crop)
                     det["severity"] = round(severity, 3)
                     det["action"] = markdown_recommendation(det["tier"], severity)
+                    det["unit_price"] = UNIT_PRICE.get(fruit, 0.30)
+                    det["recovered"] = recovered_value(det["tier"], fruit)
                     if track_id is not None:
                         self.session_counts[track_id] = det["tier"]
+                        self.session_value[track_id] = det["recovered"]
                 else:
                     det.update({"label": None, "tier": "untrained",
                                 "note": "classifier not trained yet — run notebook 02"})
@@ -184,5 +204,6 @@ class FreshGuardPipeline:
                 "fresh": tiers.count("fresh"),
                 "sell_soon": tiers.count("sell_soon"),
                 "reject": tiers.count("reject"),
+                "recovered_eur": round(sum(self.session_value.values()), 2),
             }
         return out
