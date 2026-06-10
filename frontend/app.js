@@ -1,215 +1,250 @@
-/* FreshGuard frontend — camera loop, overlay drawing, dashboard chart. */
+/* FreshGuard frontend — camera loop, overlay, money counter, dashboard. */
 
-const API = "";          // same origin
-const FPS_INTERVAL = 400; // ms between frames sent to the backend
+// API base: same-origin by default (FastAPI serves this page). Override for a
+// separately-hosted frontend (e.g. Vercel) via ?api=https://backend-url or
+// window.FRESHGUARD_API. Persisted so a scanned QR keeps working.
+const API = (() => {
+  const q = new URLSearchParams(location.search).get("api");
+  if (q) localStorage.setItem("fg_api", q);
+  return window.FRESHGUARD_API || localStorage.getItem("fg_api") || "";
+})();
+const FRAME_INTERVAL = 400; // ms between frames sent to backend
 
-const video = document.getElementById("video");
-const overlay = document.getElementById("overlay");
-const ctx = overlay.getContext("2d");
-const verdictEl = document.getElementById("verdict");
-const detailsEl = document.getElementById("details");
-const countsEl = document.getElementById("session-counts");
-const heatmapBox = document.getElementById("heatmap-box");
-const heatmapImg = document.getElementById("heatmap-img");
-const statusEl = document.getElementById("model-status");
+const $ = (id) => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), ctx = overlay.getContext("2d");
+const statusPill = $("model-status"), statusText = $("status-text");
 
 let mode = "single";
-let stream = null;
-let loopTimer = null;
-let busy = false;
+let stream = null, loopTimer = null, busy = false;
+let displayedRecovered = 0; // for smooth counter animation
 
-const TIER_STYLES = {
-  fresh: { color: "#34c477", text: "FRESH" },
-  sell_soon: { color: "#e8b545", text: "SELL SOON" },
-  reject: { color: "#e85d5d", text: "REJECT" },
-  untrained: { color: "#93a89b", text: "MODEL NOT TRAINED" },
+const TIERS = {
+  fresh:     { color: "#22c55e", text: "FRESH" },
+  sell_soon: { color: "#f5b53d", text: "SELL SOON" },
+  reject:    { color: "#ef4444", text: "REJECT" },
+  untrained: { color: "#61748c", text: "MODEL NOT TRAINED" },
 };
 
 /* ---------------- tabs ---------------- */
-const views = { scan: document.getElementById("view-scan"), dashboard: document.getElementById("view-dashboard") };
-document.getElementById("tab-scan").onclick = () => switchTab("scan");
-document.getElementById("tab-dashboard").onclick = () => { switchTab("dashboard"); loadForecast(); };
+const views = { scan: $("view-scan"), dashboard: $("view-dashboard") };
+$("tab-scan").onclick = () => switchTab("scan");
+$("tab-dashboard").onclick = () => { switchTab("dashboard"); loadForecast(); };
 function switchTab(name) {
   for (const [k, el] of Object.entries(views)) el.hidden = k !== name;
-  document.getElementById("tab-scan").classList.toggle("active", name === "scan");
-  document.getElementById("tab-dashboard").classList.toggle("active", name === "dashboard");
+  $("tab-scan").classList.toggle("is-active", name === "scan");
+  $("tab-dashboard").classList.toggle("is-active", name === "dashboard");
+  $("tab-scan").setAttribute("aria-selected", name === "scan");
+  $("tab-dashboard").setAttribute("aria-selected", name === "dashboard");
 }
 
 /* ---------------- health ---------------- */
 fetch(`${API}/api/health`).then(r => r.json()).then(h => {
-  statusEl.textContent = h.classifier_loaded ? "model loaded" : "classifier not trained yet";
-  statusEl.className = "status " + (h.classifier_loaded ? "ok" : "warn");
-}).catch(() => { statusEl.textContent = "backend offline"; statusEl.className = "status warn"; });
+  if (h.classifier_loaded) { statusText.textContent = "model live"; statusPill.className = "status-pill ok"; }
+  else { statusText.textContent = "classifier not trained"; statusPill.className = "status-pill warn"; }
+}).catch(() => { statusText.textContent = "backend offline"; statusPill.className = "status-pill err"; });
 
 /* ---------------- camera ---------------- */
 async function listCameras() {
-  const sel = document.getElementById("camera-select");
+  const sel = $("camera-select");
   const devices = await navigator.mediaDevices.enumerateDevices();
-  sel.innerHTML = "";
-  devices.filter(d => d.kind === "videoinput").forEach((d, i) => {
-    const opt = document.createElement("option");
-    opt.value = d.deviceId;
-    opt.textContent = d.label || `Camera ${i + 1}`;
-    sel.appendChild(opt);
-  });
+  const cams = devices.filter(d => d.kind === "videoinput");
+  sel.innerHTML = cams.map((d, i) => `<option value="${d.deviceId}">${d.label || "Camera " + (i + 1)}</option>`).join("");
 }
 
-document.getElementById("btn-start").onclick = startCamera;
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
-  const deviceId = document.getElementById("camera-select").value;
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" },
-    audio: false,
-  });
+  const deviceId = $("camera-select").value;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" },
+      audio: false,
+    });
+  } catch (e) { alert("Camera access denied or unavailable. You can still use Upload."); return; }
   video.srcObject = stream;
-  await listCameras(); // labels appear after permission is granted
-  document.getElementById("btn-explain").disabled = false;
+  $("video-empty").hidden = true;
+  $("btn-explain").disabled = false;
+  $("fps-badge").hidden = false;
+  await listCameras();
   video.onloadedmetadata = () => {
-    overlay.width = video.videoWidth;
-    overlay.height = video.videoHeight;
+    overlay.width = video.videoWidth; overlay.height = video.videoHeight;
     if (loopTimer) clearInterval(loopTimer);
-    loopTimer = setInterval(sendFrame, FPS_INTERVAL);
+    loopTimer = setInterval(() => sendFrame(false), FRAME_INTERVAL);
   };
 }
+$("btn-start").onclick = startCamera;
 
-/* ---------------- mode toggle ---------------- */
-document.getElementById("mode-single").onclick = () => setMode("single");
-document.getElementById("mode-conveyor").onclick = () => setMode("conveyor");
+/* ---------------- mode ---------------- */
 function setMode(m) {
   mode = m;
-  document.getElementById("mode-single").classList.toggle("active", m === "single");
-  document.getElementById("mode-conveyor").classList.toggle("active", m === "conveyor");
-  countsEl.hidden = m !== "conveyor";
-  document.getElementById("btn-reset").hidden = m !== "conveyor";
-  heatmapBox.hidden = true;
+  $("mode-single").classList.toggle("is-active", m === "single");
+  $("mode-conveyor").classList.toggle("is-active", m === "conveyor");
+  const conveyor = m === "conveyor";
+  $("session-counts").hidden = !conveyor;
+  $("recovered-card").hidden = !conveyor;
+  $("btn-reset").hidden = !conveyor;
+  $("heatmap-box").hidden = true;
 }
-
-document.getElementById("btn-reset").onclick = async () => {
+$("mode-single").onclick = () => setMode("single");
+$("mode-conveyor").onclick = () => setMode("conveyor");
+$("btn-reset").onclick = async () => {
   await fetch(`${API}/api/reset_session`, { method: "POST" });
+  displayedRecovered = 0; $("recovered-value").textContent = "€0.00";
 };
 
 /* ---------------- frame loop ---------------- */
-const grabCanvas = document.createElement("canvas");
-
-async function sendFrame(explain = false) {
+const grab = document.createElement("canvas");
+async function sendFrame(explain) {
   if (busy || !video.videoWidth) return;
   busy = true;
+  const t0 = performance.now();
   try {
-    grabCanvas.width = video.videoWidth;
-    grabCanvas.height = video.videoHeight;
-    grabCanvas.getContext("2d").drawImage(video, 0, 0);
-    const blob = await new Promise(res => grabCanvas.toBlob(res, "image/jpeg", 0.8));
-    const fd = new FormData();
-    fd.append("file", blob, "frame.jpg");
-    const r = await fetch(`${API}/api/predict?mode=${mode}&explain=${explain}`, { method: "POST", body: fd });
-    render(await r.json());
-  } catch (e) { /* keep the loop alive */ }
+    grab.width = video.videoWidth; grab.height = video.videoHeight;
+    grab.getContext("2d").drawImage(video, 0, 0);
+    const blob = await new Promise(r => grab.toBlob(r, "image/jpeg", 0.82));
+    const fd = new FormData(); fd.append("file", blob, "frame.jpg");
+    const res = await fetch(`${API}/api/predict?mode=${mode}&explain=${explain}`, { method: "POST", body: fd });
+    render(await res.json());
+    $("fps-val").textContent = Math.round(performance.now() - t0);
+  } catch (e) { /* keep loop alive */ }
   busy = false;
 }
+$("btn-explain").onclick = () => sendFrame(true);
 
-document.getElementById("btn-explain").onclick = () => sendFrame(true);
-
-/* ---------------- upload fallback ---------------- */
-document.getElementById("file-input").onchange = async (ev) => {
-  const file = ev.target.files[0];
-  if (!file) return;
-  const fd = new FormData();
-  fd.append("file", file);
-  const r = await fetch(`${API}/api/predict?mode=single&explain=true`, { method: "POST", body: fd });
-  const data = await r.json();
-  const img = new Image();
-  img.onload = () => {
-    overlay.width = img.width; overlay.height = img.height;
-    render(data);
+/* ---------------- upload ---------------- */
+function wireUpload(input) {
+  input.onchange = async (ev) => {
+    const file = ev.target.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append("file", file);
+    const res = await fetch(`${API}/api/predict?mode=single&explain=true`, { method: "POST", body: fd });
+    const data = await res.json();
+    const img = new Image();
+    img.onload = () => { overlay.width = img.width; overlay.height = img.height;
+      $("video-empty").hidden = true; render(data); };
+    img.src = URL.createObjectURL(file);
   };
-  img.src = URL.createObjectURL(file);
-};
+}
+wireUpload($("file-input")); wireUpload($("file-input-2"));
 
 /* ---------------- rendering ---------------- */
 function render(data) {
   ctx.clearRect(0, 0, overlay.width, overlay.height);
-  if (data.error) return;
+  if (!data || data.error) return;
+  const dets = data.detections || [];
 
-  for (const det of data.detections || []) {
-    const [x1, y1, x2, y2] = det.box;
-    const style = TIER_STYLES[det.tier] || TIER_STYLES.untrained;
-    ctx.strokeStyle = style.color;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-    const tag = `${det.fruit.toUpperCase()}${det.track_id != null ? " #" + det.track_id : ""} — ${style.text}` +
-                (det.rotten_prob != null ? ` ${(det.confidence * 100).toFixed(0)}%` : "");
-    ctx.font = "bold 16px system-ui";
-    const w = ctx.measureText(tag).width + 12;
-    ctx.fillStyle = style.color;
-    ctx.fillRect(x1, Math.max(0, y1 - 24), w, 24);
-    ctx.fillStyle = "#08130c";
-    ctx.fillText(tag, x1 + 6, Math.max(16, y1 - 6));
+  for (const d of dets) {
+    const [x1, y1, x2, y2] = d.box;
+    const s = TIERS[d.tier] || TIERS.untrained;
+    ctx.lineWidth = Math.max(2, overlay.width / 320);
+    ctx.strokeStyle = s.color;
+    roundRect(ctx, x1, y1, x2 - x1, y2 - y1, 8); ctx.stroke();
+    const tag = `${d.fruit.toUpperCase()}${d.track_id != null ? " #" + d.track_id : ""} · ${s.text}` +
+                (d.confidence != null ? ` ${(d.confidence * 100).toFixed(0)}%` : "");
+    ctx.font = `600 ${Math.max(13, overlay.width / 48)}px Inter, sans-serif`;
+    const pad = 7, tw = ctx.measureText(tag).width + pad * 2, th = Math.max(20, overlay.width / 34);
+    ctx.fillStyle = s.color;
+    roundRect(ctx, x1, Math.max(0, y1 - th - 2), tw, th, 6); ctx.fill();
+    ctx.fillStyle = "#06140b"; ctx.textBaseline = "middle";
+    ctx.fillText(tag, x1 + pad, Math.max(th / 2, y1 - th / 2 - 2));
   }
 
-  // side panel: largest detection drives the verdict
-  const dets = data.detections || [];
+  // panel: largest detection drives the verdict
   if (!dets.length) {
-    verdictEl.className = "verdict idle";
-    verdictEl.textContent = "No fruit in view";
-    detailsEl.innerHTML = "";
+    setVerdict("idle", "No item in view", "hold produce up to the camera");
+    $("details").innerHTML = ""; $("heatmap-box").hidden = true;
   } else {
-    const main = dets.reduce((a, b) =>
-      ((a.box[2] - a.box[0]) * (a.box[3] - a.box[1]) >= (b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) ? a : b);
-    const style = TIER_STYLES[main.tier] || TIER_STYLES.untrained;
-    verdictEl.className = `verdict ${main.tier}`;
-    verdictEl.textContent = style.text;
-    detailsEl.innerHTML = [
-      ["Fruit", main.fruit],
-      ["Detector confidence", fmtPct(main.det_conf)],
-      ["Grade confidence", fmtPct(main.confidence)],
-      ["Rot probability", fmtPct(main.rotten_prob)],
-      ["Decay surface area", fmtPct(main.severity)],
-      ["Price action", main.action ?? "—"],
-      ["Detector ↔ classifier agree", main.fruit_agreement == null ? "—" : (main.fruit_agreement ? "yes" : "no ⚠")],
+    const m = dets.reduce((a, b) => area(a) >= area(b) ? a : b);
+    const s = TIERS[m.tier] || TIERS.untrained;
+    setVerdict(m.tier, s.text, m.action || m.note || "");
+    $("details").innerHTML = [
+      ["Item", m.fruit],
+      ["Detector conf.", pct(m.det_conf)],
+      ["Grade conf.", pct(m.confidence)],
+      ["Rot probability", pct(m.rotten_prob)],
+      ["Decay surface", pct(m.severity)],
+      ["Unit price", m.unit_price != null ? "€" + m.unit_price.toFixed(2) : "—"],
+      ["Recoverable", m.recovered ? "€" + m.recovered.toFixed(2) : "—"],
+      ["Detector ↔ model", m.fruit_agreement == null ? "—" : (m.fruit_agreement ? "agree" : "⚠ differ")],
     ].map(([k, v]) => `<dt>${k}</dt><dd>${v ?? "—"}</dd>`).join("");
-    if (main.heatmap_png) {
-      heatmapImg.src = `data:image/png;base64,${main.heatmap_png}`;
-      heatmapBox.hidden = false;
-    }
+    if (m.heatmap_png) { $("heatmap-img").src = `data:image/png;base64,${m.heatmap_png}`; $("heatmap-box").hidden = false; }
   }
 
   if (data.session) {
-    document.getElementById("c-scanned").textContent = data.session.scanned;
-    document.getElementById("c-fresh").textContent = data.session.fresh;
-    document.getElementById("c-sellsoon").textContent = data.session.sell_soon;
-    document.getElementById("c-reject").textContent = data.session.reject;
+    $("c-scanned").textContent = data.session.scanned;
+    $("c-fresh").textContent = data.session.fresh;
+    $("c-sellsoon").textContent = data.session.sell_soon;
+    $("c-reject").textContent = data.session.reject;
+    animateMoney(data.session.recovered_eur || 0);
   }
 }
 
-const fmtPct = v => v == null ? "—" : `${(v * 100).toFixed(0)}%`;
+function setVerdict(tier, label, sub) {
+  const v = $("verdict");
+  v.className = "verdict card " + (tier === "idle" ? "" : tier);
+  $("verdict-label").textContent = label;
+  $("verdict-sub").textContent = sub;
+}
+
+/* smooth count-up for the money counter */
+function animateMoney(target) {
+  const start = displayedRecovered, delta = target - start;
+  if (Math.abs(delta) < 0.005) return;
+  const dur = 600, t0 = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    displayedRecovered = start + delta * eased;
+    $("recovered-value").textContent = "€" + displayedRecovered.toFixed(2);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const pct = (v) => v == null ? "—" : `${(v * 100).toFixed(0)}%`;
+const area = (d) => (d.box[2] - d.box[0]) * (d.box[3] - d.box[1]);
+function roundRect(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r); c.closePath();
+}
 
 /* ---------------- dashboard ---------------- */
 let chart = null;
 async function loadForecast() {
-  const r = await fetch(`${API}/api/forecast`);
-  const data = await r.json();
-  document.getElementById("forecast-note").textContent = data.note || "LSTM forecast (trained on scan history)";
+  const data = await (await fetch(`${API}/api/forecast`)).json();
+  $("forecast-note").textContent = data.note || "next 7 days · LSTM forecast";
   const labels = [...data.history.dates, ...data.forecast.dates];
   const hist = [...data.history.values, ...Array(data.forecast.dates.length).fill(null)];
-  const fore = [...Array(data.history.dates.length).fill(null), ...data.forecast.values];
+  const fore = [...Array(data.history.dates.length - 1).fill(null),
+                data.history.values.at(-1), ...data.forecast.values];
+  const avg = data.history.values.reduce((a, b) => a + b, 0) / data.history.values.length;
+  $("kpi-next7").textContent = Math.round(data.forecast.values.reduce((a, b) => a + b, 0));
+  $("kpi-avg").textContent = avg.toFixed(0);
+
   if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("forecast-chart"), {
+  const c = $("forecast-chart").getContext("2d");
+  const grad = c.createLinearGradient(0, 0, 0, 240);
+  grad.addColorStop(0, "rgba(34,197,94,0.28)"); grad.addColorStop(1, "rgba(34,197,94,0)");
+  chart = new Chart(c, {
     type: "line",
     data: { labels, datasets: [
-      { label: "Flagged items / day", data: hist, borderColor: "#34c477", pointRadius: 0, tension: 0.3 },
-      { label: "LSTM forecast", data: fore, borderColor: "#e8b545", borderDash: [6, 4], pointRadius: 3, tension: 0.3 },
+      { label: "Flagged / day", data: hist, borderColor: "#22c55e", backgroundColor: grad, fill: true, pointRadius: 0, borderWidth: 2, tension: 0.35 },
+      { label: "LSTM forecast", data: fore, borderColor: "#f5b53d", borderDash: [6, 4], pointRadius: 2, borderWidth: 2, tension: 0.35 },
     ]},
     options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: "index" },
+      plugins: { legend: { labels: { color: "#8aa0b8", usePointStyle: true, boxWidth: 8 } },
+                 tooltip: { backgroundColor: "#0f1a2e", borderColor: "#1e2a40", borderWidth: 1 } },
       scales: {
-        x: { ticks: { color: "#93a89b", maxTicksLimit: 10 }, grid: { color: "#24332b" } },
-        y: { ticks: { color: "#93a89b" }, grid: { color: "#24332b" } },
+        x: { ticks: { color: "#61748c", maxTicksLimit: 8, font: { size: 10 } }, grid: { color: "#16203250" } },
+        y: { ticks: { color: "#61748c", font: { size: 10 } }, grid: { color: "#16203250" }, beginAtZero: true },
       },
-      plugins: { legend: { labels: { color: "#e8efe9" } } },
     },
   });
 }
 
 /* init */
-listCameras();
+listCameras().catch(() => {});
 setMode("single");

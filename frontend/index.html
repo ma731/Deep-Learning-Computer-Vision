@@ -3,76 +3,146 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FreshGuard — AI Produce Quality Control</title>
+  <title>FreshGuard · AI Produce Quality Control</title>
+  <meta name="description" content="Real-time AI quality control for perishable retail. Catch decay a day earlier and recover margin.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
-  <header>
+  <div class="ambient" aria-hidden="true"></div>
+
+  <header class="topbar">
     <div class="brand">
-      <span class="logo">🍏</span>
-      <div>
-        <h1>FreshGuard</h1>
-        <p class="tagline">Catch decay a day earlier. Sell it — don’t bin it.</p>
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3c2.5 1.2 4 3.5 4 6.5a4 4 0 0 1-8 0c0-1 .2-1.9.6-2.7"/>
+          <path d="M12 3v3"/><path d="M9.5 11.5l1.7 1.7 3.3-3.3"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <strong>FreshGuard</strong>
+        <span>AI Produce Quality Control</span>
       </div>
     </div>
-    <nav>
-      <button id="tab-scan" class="tab active">Scan</button>
-      <button id="tab-dashboard" class="tab">Manager dashboard</button>
-      <span id="model-status" class="status">checking…</span>
+
+    <nav class="tabs" role="tablist">
+      <button id="tab-scan" class="tab is-active" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>
+        Live scan
+      </button>
+      <button id="tab-dashboard" class="tab" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
+        Manager dashboard
+      </button>
     </nav>
+
+    <div class="status-pill" id="model-status" title="Model status">
+      <span class="dot"></span><span id="status-text">connecting…</span>
+    </div>
   </header>
 
   <main>
-    <!-- ============ SCAN VIEW ============ -->
-    <section id="view-scan">
-      <div class="controls">
-        <select id="camera-select" title="Camera"></select>
-        <div class="mode-toggle">
-          <button id="mode-single" class="mode active">Single fruit</button>
-          <button id="mode-conveyor" class="mode">Conveyor</button>
-        </div>
-        <button id="btn-start" class="primary">Start camera</button>
-        <button id="btn-explain" disabled>Explain (Grad-CAM)</button>
-        <label class="upload-btn">Upload photo
-          <input id="file-input" type="file" accept="image/*" hidden>
-        </label>
-        <button id="btn-reset" class="ghost" hidden>Reset count</button>
-      </div>
-
-      <div class="stage">
-        <div class="video-wrap">
-          <video id="video" autoplay playsinline muted></video>
-          <canvas id="overlay"></canvas>
-        </div>
-        <aside class="panel">
-          <div id="verdict" class="verdict idle">Point the camera at a fruit</div>
-          <dl id="details"></dl>
-          <div id="session-counts" class="counts" hidden>
-            <div><span id="c-scanned">0</span><label>scanned</label></div>
-            <div class="ok"><span id="c-fresh">0</span><label>fresh</label></div>
-            <div class="warn"><span id="c-sellsoon">0</span><label>sell soon</label></div>
-            <div class="bad"><span id="c-reject">0</span><label>reject</label></div>
+    <!-- ===================== SCAN ===================== -->
+    <section id="view-scan" class="view" role="tabpanel">
+      <div class="scan-grid">
+        <!-- video -->
+        <div class="stage card">
+          <div class="stage-head">
+            <div class="seg" role="group" aria-label="Scan mode">
+              <button id="mode-single" class="seg-btn is-active">Single item</button>
+              <button id="mode-conveyor" class="seg-btn">Conveyor</button>
+            </div>
+            <div class="stage-tools">
+              <span class="fps" id="fps-badge" hidden><span class="live-dot"></span><span id="fps-val">0</span> ms · live</span>
+              <select id="camera-select" class="select" title="Camera source"></select>
+            </div>
           </div>
-          <figure id="heatmap-box" hidden>
-            <img id="heatmap-img" alt="Grad-CAM heatmap">
-            <figcaption>Where the network looks — Grad-CAM</figcaption>
+
+          <div class="video-wrap" id="video-wrap">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <div class="video-empty" id="video-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              <p>Start the camera, or upload a photo</p>
+              <div class="empty-actions">
+                <button id="btn-start" class="btn btn-primary">Start camera</button>
+                <label class="btn btn-ghost">Upload photo
+                  <input id="file-input" type="file" accept="image/*" hidden>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage-foot">
+            <button id="btn-explain" class="btn btn-ghost" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              Explain (Grad-CAM)
+            </button>
+            <label class="btn btn-ghost btn-sm">Upload
+              <input id="file-input-2" type="file" accept="image/*" hidden>
+            </label>
+            <button id="btn-reset" class="btn btn-ghost btn-sm" hidden>Reset session</button>
+          </div>
+        </div>
+
+        <!-- side panel -->
+        <aside class="panel">
+          <div class="verdict card" id="verdict">
+            <span class="verdict-eyebrow">Verdict</span>
+            <span class="verdict-label" id="verdict-label">Point at a produce item</span>
+            <span class="verdict-sub" id="verdict-sub">apple · banana · orange · carrot</span>
+          </div>
+
+          <div class="card metric-card" id="recovered-card" hidden>
+            <span class="metric-eyebrow">Money recovered this session</span>
+            <span class="metric-value" id="recovered-value">€0.00</span>
+            <span class="metric-foot" id="recovered-foot">marked down instead of binned</span>
+          </div>
+
+          <div class="card counts-card" id="session-counts" hidden>
+            <div class="count"><b id="c-scanned">0</b><span>scanned</span></div>
+            <div class="count ok"><b id="c-fresh">0</b><span>fresh</span></div>
+            <div class="count warn"><b id="c-sellsoon">0</b><span>sell soon</span></div>
+            <div class="count bad"><b id="c-reject">0</b><span>reject</span></div>
+          </div>
+
+          <dl class="card details" id="details"></dl>
+
+          <figure class="card heatmap" id="heatmap-box" hidden>
+            <img id="heatmap-img" alt="Grad-CAM heatmap of model attention">
+            <figcaption>Grad-CAM · where the network is looking</figcaption>
           </figure>
         </aside>
       </div>
     </section>
 
-    <!-- ============ DASHBOARD VIEW ============ -->
-    <section id="view-dashboard" hidden>
-      <h2>Spoilage forecast — next 7 days</h2>
-      <p id="forecast-note" class="note"></p>
-      <canvas id="forecast-chart" height="110"></canvas>
-      <p class="note">Daily items flagged “sell soon” or “reject” by store scans.
-        Forecast by an LSTM trained on scan history — order less of what is about to spoil.</p>
+    <!-- ===================== DASHBOARD ===================== -->
+    <section id="view-dashboard" class="view" role="tabpanel" hidden>
+      <div class="dash-head">
+        <div>
+          <h2>Spoilage forecast</h2>
+          <p class="muted" id="forecast-note">next 7 days</p>
+        </div>
+        <div class="dash-kpis">
+          <div class="kpi"><b id="kpi-next7">—</b><span>forecast next 7d</span></div>
+          <div class="kpi"><b id="kpi-avg">—</b><span>avg / day (90d)</span></div>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <canvas id="forecast-chart" height="120"></canvas>
+      </div>
+      <p class="muted small">Daily items flagged “sell soon” or “reject” by store scans. An LSTM forecasts demand so buyers order less of what is about to spoil — the data flywheel: every scan sharpens the forecast.</p>
     </section>
   </main>
 
-  <footer>IE University · Deep Learning — Final Project MVP</footer>
+  <footer class="foot">
+    <span>IE University · Deep Learning Final Project</span>
+    <span class="foot-tag">FreshGuard MVP</span>
+  </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
