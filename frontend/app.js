@@ -138,7 +138,7 @@ function render(data) {
     ctx.lineWidth = Math.max(2, overlay.width / 320);
     ctx.strokeStyle = s.color;
     roundRect(ctx, x1, y1, x2 - x1, y2 - y1, 8); ctx.stroke();
-    const tag = `${d.fruit.toUpperCase()}${d.track_id != null ? " #" + d.track_id : ""} · ${s.text}` +
+    const tag = `${prettyFruit(d.fruit).toUpperCase()}${d.track_id != null ? " #" + d.track_id : ""} · ${s.text}` +
                 (d.confidence != null ? ` ${(d.confidence * 100).toFixed(0)}%` : "");
     ctx.font = `600 ${Math.max(13, overlay.width / 48)}px Inter, sans-serif`;
     const pad = 7, tw = ctx.measureText(tag).width + pad * 2, th = Math.max(20, overlay.width / 34);
@@ -160,8 +160,8 @@ function render(data) {
       : (m.action || m.note || "");
     setVerdict(m.tier, s.text, sub);
     $("details").innerHTML = [
-      ["Item", m.fruit],
-      ["Detector conf.", pct(m.det_conf)],
+      ["Item", prettyFruit(m.fruit)],
+      ["Detector conf.", m.source === "fallback" ? "center-crop" : pct(m.det_conf)],
       ["Grade conf.", pct(m.confidence)],
       m.tier === "review" ? ["Would guess", (m.tier_raw || "—").replace("_", " ")] : null,
       ["Rot probability", pct(m.rotten_prob)],
@@ -206,6 +206,7 @@ function animateMoney(target) {
 }
 
 const pct = (v) => v == null ? "—" : `${(v * 100).toFixed(0)}%`;
+const prettyFruit = (f) => f === "bellpepper" ? "bell pepper" : f;
 const area = (d) => (d.box[2] - d.box[0]) * (d.box[3] - d.box[1]);
 function roundRect(c, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
