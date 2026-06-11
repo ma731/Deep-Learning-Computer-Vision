@@ -19,12 +19,13 @@ inspector: catch decay a day earlier, mark it down instead of binning it.
 ```
 camera frame ──▶ Stage 1: YOLOv8n (pretrained, COCO)          [backend/pipeline.py]
                   └─ detects & tracks banana / apple / orange / carrot
-                     │ crop per item
+                     │  (other produce → center-crop fallback, no box)
                      ▼
                  Stage 2: MobileNetV2 (OUR model, fine-tuned)  [notebook 02 → models/]
-                  └─ 8-class softmax → fresh / sell-soon / reject
+                  └─ 20-class softmax → fresh / sell-soon / reject / review
                      │
                      ├─ Grad-CAM heatmap (explainability)      [backend/gradcam.py]
+                     ├─ abstains to "review" when unsure (active learning)
                      └─ majority vote over tracked frames (stable demo)
 
 scan history ──▶ LSTM 7-day spoilage forecast                 [notebook 03 → models/]
@@ -40,18 +41,19 @@ classifier head), CNN (core model), RNN/LSTM (spoilage forecast).
 
 ## Results — the architecture ablation
 
-We don't just claim a CNN is right; we prove it on our own 8-class data
-(test set = 2,337 held-out images):
+We don't just claim a CNN is right; we prove it on our own 20-class data
+(test set = 4,140 held-out images):
 
 | Model | Test accuracy | Parameters | Why |
 |---|---|---|---|
-| ANN (flattened pixels) | **41.2%** | 14.3M | No spatial structure — most params, worst result |
-| CNN from scratch | **77.6%** | 8.5M | Learns spatial features; limited by dataset size |
-| **MobileNetV2 transfer learning** | **97.1%** | **2.6M** | ImageNet features + fine-tuning — best accuracy, fewest params |
+| ANN (flattened pixels) | **22.2%** | 14.3M | No spatial structure — most params, worst result |
+| CNN from scratch | **73.3%** | 8.5M | Learns spatial features; limited by dataset size |
+| **MobileNetV2 transfer learning** | **95.6%** | **2.6M** | ImageNet features + fine-tuning — best accuracy, fewest params |
 
-The staircase (41 → 78 → 97) *is* the architectural justification: the
-transfer-learning model is **2.4× more accurate than the ANN with 5.5× fewer
-parameters.** Curves + comparison chart in `docs/figures/`.
+The staircase (22 → 73 → 96) *is* the architectural justification: the
+transfer-learning model is **4.3× more accurate than the ANN with 5.5× fewer
+parameters.** On the binary fresh-vs-rotten task, ROC-AUC = **0.998**. Curves,
+20×20 confusion matrix, ROC, and Grad-CAM gallery in `docs/figures/`.
 
 ## Quick start
 
@@ -72,13 +74,14 @@ must be served over HTTPS (iOS camera requirement) — use `ngrok http 8000`.
 ## Dataset
 
 [Kaggle: Fruit and Vegetable Disease (Healthy vs Rotten)](https://www.kaggle.com/datasets/muhammad0subhan/fruit-and-vegetable-disease-healthy-vs-rotten).
-We use the four **COCO-detectable** produce types (so Stage-1 YOLO works
-zero-shot) → **8 classes**, fresh/rotten × {apple, banana, orange, **carrot**}.
-~15.6k images; an 85/15 train/test split → 13,281 train / 2,337 test.
+**10 produce types × fresh/rotten = 20 classes**: apple, banana, orange,
+carrot, tomato, potato, cucumber, bell pepper, mango, strawberry. ~27.7k
+images; 85/15 split → 23,537 train / 4,140 test.
 
-Carrot crosses the pilot from fruit into vegetables. Broccoli is the only
-other COCO-detectable produce but lacks a clean rotten dataset, so it's left
-to the roadmap.
+Apple/banana/orange/carrot are **COCO-detectable** → full real-time detection
++ tracking. The other six are graded via a **center-crop fallback** (live
+verdict + Grad-CAM, no bounding box, since COCO can't detect them). Broccoli
+is excluded — no clean rotten dataset.
 
 ```bash
 python scripts/build_dataset.py   # downloads + builds data/dataset/{train,test}/

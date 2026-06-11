@@ -23,6 +23,9 @@ TEST_FRAC = 0.15
 N_SAMPLE = 4  # images per class copied into the repo as a visible sample
 
 # class name (ours)  ->  source folder name
+# 10 produce types x {fresh, rotten} = 20 classes. apple/banana/orange/carrot
+# are COCO-detectable (Stage-1 YOLO live box + tracking); the rest are graded
+# via the classifier with a center-crop fallback (no broccoli — no clean data).
 MAPPING = {
     "fresh_apple":  "Apple__Healthy",
     "rotten_apple": "Apple__Rotten",
@@ -32,6 +35,19 @@ MAPPING = {
     "rotten_orange": "Orange__Rotten",
     "fresh_carrot": "Carrot__Healthy",
     "rotten_carrot": "Carrot__Rotten",
+    # well-sampled additions (600-2,000 imgs each)
+    "fresh_tomato": "Tomato__Healthy",
+    "rotten_tomato": "Tomato__Rotten",
+    "fresh_potato": "Potato__Healthy",
+    "rotten_potato": "Potato__Rotten",
+    "fresh_cucumber": "Cucumber__Healthy",
+    "rotten_cucumber": "Cucumber__Rotten",
+    "fresh_bellpepper": "Bellpepper__Healthy",
+    "rotten_bellpepper": "Bellpepper__Rotten",
+    "fresh_mango": "Mango__Healthy",
+    "rotten_mango": "Mango__Rotten",
+    "fresh_strawberry": "Strawberry__Healthy",
+    "rotten_strawberry": "Strawberry__Rotten",
 }
 
 
@@ -43,6 +59,8 @@ def main():
 
     if OUT.exists():
         shutil.rmtree(OUT)
+    if SAMPLE.exists():
+        shutil.rmtree(SAMPLE)   # keep the committed sample set clean on rebuild
     summary = {}
     for cls, folder in MAPPING.items():
         imgs = sorted((base / folder).glob("*"))
