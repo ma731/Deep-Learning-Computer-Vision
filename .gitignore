@@ -18,6 +18,9 @@ field_test/
 !data/sample_images/**
 # eval byproduct (config-cleaned copy from notebook 02b's loader workaround)
 models/freshguard_fixed.keras
+# active-learning review queue (runtime crops + log)
+data/review_queue/
+models/review_queue.jsonl
 
 # Logs
 logs/
