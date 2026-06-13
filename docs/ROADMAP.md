@@ -81,7 +81,12 @@ compliance value. A 500-store chain → **~€9M/year impact.**
 ### Long-term — platform & moat
 - **Whole cold chain:** distribution-center intake QC, supplier accept/reject
   dispute settlement, in-transit monitoring. Bigger contracts, longer cycles.
-- **All perishables:** bakery, meat, dairy, florals — same pipeline.
+- **All perishables:** bakery, meat, dairy, florals — same pipeline. Extension is
+  data-ready, not hypothetical: public meat-freshness datasets already exist
+  (e.g. Kaggle "Meat Freshness Image Dataset", 2,266 imgs labeled
+  Fresh/Half-Fresh/Spoiled — which maps directly onto our fresh/sell-soon/reject
+  tiers; and MeatScan, ~11k real-market images). Same two-stage approach, new
+  fine-tune.
 - **Compliance-as-a-service:** auto-generate Law 1/2025 + EU CSRD
   waste-prevention reports from scan logs. Selling a legal obligation, not just
   an optimization.
