@@ -123,11 +123,44 @@ def build_features(dates, target_scaled: np.ndarray) -> np.ndarray:
                             doy_sin, doy_cos, is_holiday, is_promo])
 
 
-def get_forecast() -> dict:
+def compute_action_plan(hist_values, fc_values, fc_dates) -> dict:
+    """Turn the raw 7-day forecast into a business decision (RNN → action)."""
+    week_total = float(sum(fc_values))
+    last_week = float(sum(hist_values[-7:])) if len(hist_values) >= 7 else week_total
+    delta_pct = (week_total - last_week) / (last_week + 1e-9) * 100.0
+    peak_i = int(np.argmax(fc_values))
+    peak_day = pd.Timestamp(fc_dates[peak_i]).strftime("%a %d %b")
+    # reorder signal: if the week ahead is lighter than last week, order less
+    if delta_pct <= -5:
+        reorder = f"Order ~{abs(round(delta_pct))}% less — lighter spoilage week ahead"
+    elif delta_pct >= 5:
+        reorder = f"Brace for ~{round(delta_pct)}% more markdowns — tighten ordering"
+    else:
+        reorder = "Hold ordering steady — demand in line with last week"
+    return {
+        "week_total": round(week_total),
+        "delta_pct": round(delta_pct, 1),
+        "peak_day": peak_day,
+        "peak_value": round(float(fc_values[peak_i])),
+        "reorder": reorder,
+        "markdown_alert": f"Markdown surge expected {peak_day} (~{round(float(fc_values[peak_i]))} items)",
+    }
+
+
+def get_forecast(live_flagged: int | None = None) -> dict:
     if HISTORY_PATH.exists():
         df = pd.read_csv(HISTORY_PATH, parse_dates=["date"])
     else:
         df = simulate_history()
+
+    # close the loop: append today's live conveyor tally as a new data point so
+    # the LSTM re-forecasts on the freshest scan data (the data flywheel, live).
+    live_appended = False
+    if live_flagged is not None and live_flagged > 0:
+        today = df["date"].iloc[-1] + pd.Timedelta(days=1)
+        df = pd.concat([df, pd.DataFrame({"date": [today],
+                       "flagged_items": [float(live_flagged)]})], ignore_index=True)
+        live_appended = True
 
     series = df["flagged_items"].to_numpy(dtype=np.float32)
     lstm_used = False
@@ -155,16 +188,17 @@ def get_forecast() -> dict:
 
     last_date = df["date"].iloc[-1]
     future_dates = pd.date_range(last_date + pd.Timedelta(days=1), periods=HORIZON)
+    fc_values = [round(float(v), 1) for v in forecast]
+    fc_dates = future_dates.strftime("%Y-%m-%d").tolist()
     return {
         "history": {
             "dates": df["date"].dt.strftime("%Y-%m-%d").tolist()[-90:],
             "values": df["flagged_items"].tolist()[-90:],
         },
-        "forecast": {
-            "dates": future_dates.strftime("%Y-%m-%d").tolist(),
-            "values": [round(float(v), 1) for v in forecast],
-        },
+        "forecast": {"dates": fc_dates, "values": fc_values},
+        "action_plan": compute_action_plan(df["flagged_items"].tolist(), fc_values, fc_dates),
         "lstm_used": lstm_used,
+        "live_appended": live_appended,
         "note": None if lstm_used else
                 "LSTM not trained yet (run notebook 03) — showing seasonal-naive forecast",
     }

@@ -126,6 +126,12 @@ class FreshGuardPipeline:
     def model_loaded(self) -> bool:
         return self.classifier is not None
 
+    def live_flagged(self) -> int:
+        """Items flagged this conveyor session (sell_soon + reject) — feeds the
+        live forecast loop (CNN scans → RNN re-forecast)."""
+        return sum(1 for t in self.session_counts.values()
+                   if t in ("sell_soon", "reject"))
+
     def reset_session(self):
         self.track_history.clear()
         self.session_counts.clear()

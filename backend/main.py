@@ -79,8 +79,13 @@ def review_queue_clear():
 
 
 @app.get("/api/forecast")
-def forecast():
-    return get_forecast()
+def forecast(live: bool = Query(False)):
+    # live=true closes the loop: today's conveyor tally is appended before the
+    # LSTM re-forecasts (CNN scans → RNN forecast).
+    live_flagged = pipeline.live_flagged() if live else None
+    out = get_forecast(live_flagged=live_flagged)
+    out["live_flagged_today"] = live_flagged or 0
+    return out
 
 
 # Serve the frontend (must be mounted last so /api keeps priority)

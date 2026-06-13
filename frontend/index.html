@@ -64,6 +64,9 @@
           <div class="video-wrap" id="video-wrap">
             <video id="video" autoplay playsinline muted></video>
             <canvas id="overlay"></canvas>
+            <div class="scanline" id="scanline" hidden></div>
+            <div class="corner tl"></div><div class="corner tr"></div>
+            <div class="corner bl"></div><div class="corner br"></div>
             <div class="video-empty" id="video-empty">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
               <p>Start the camera, or upload a photo</p>
@@ -110,6 +113,19 @@
             <div class="count review"><b id="c-review">0</b><span>review</span></div>
           </div>
 
+          <!-- RNN surfaced on the scan screen: 7-day outlook, live -->
+          <div class="card outlook-card" id="outlook-card">
+            <div class="outlook-head">
+              <span class="metric-eyebrow">7-day spoilage outlook · LSTM</span>
+              <span class="outlook-live" id="outlook-live" hidden>● live</span>
+            </div>
+            <div class="outlook-main">
+              <b id="ol-total">—</b><span>projected markdowns</span>
+            </div>
+            <canvas id="ol-spark" height="34"></canvas>
+            <div class="outlook-action" id="ol-action">—</div>
+          </div>
+
           <dl class="card details" id="details"></dl>
 
           <figure class="card heatmap" id="heatmap-box" hidden>
@@ -132,8 +148,16 @@
           <div class="kpi"><b id="kpi-avg">—</b><span>avg / day (90d)</span></div>
         </div>
       </div>
-      <div class="card chart-card">
-        <canvas id="forecast-chart" height="120"></canvas>
+      <div class="dash-grid">
+        <div class="card chart-card">
+          <canvas id="forecast-chart" height="120"></canvas>
+        </div>
+        <div class="card plan-card">
+          <h3>This week's action plan</h3>
+          <div class="plan-item"><span class="plan-ico ord">↧</span><div><b id="ap-reorder">—</b><small>ordering</small></div></div>
+          <div class="plan-item"><span class="plan-ico mk">!</span><div><b id="ap-markdown">—</b><small>markdown surge</small></div></div>
+          <div class="plan-item"><span class="plan-ico live">●</span><div><b id="ap-live">—</b><small>today's live scans</small></div></div>
+        </div>
       </div>
       <p class="muted small">Daily items flagged “sell soon” or “reject” by store scans. An LSTM forecasts demand so buyers order less of what is about to spoil — the data flywheel: every scan sharpens the forecast.</p>
     </section>
