@@ -70,6 +70,11 @@ compliance value. A 500-store chain → **~€9M/year impact.**
   instead of handheld sweeps.
 
 ### Mid-term — more value from the same data
+- **Broaden produce coverage.** The MVP ships 10 well-sampled types; the same
+  source dataset already contains more (grape, guava, pomegranate, jujube, …),
+  and a custom YOLO fine-tune (CV-course Session 8 technique) would extend
+  *real-time detection* beyond the 4 COCO classes to any produce. Deliberately
+  held back from the MVP to keep headline accuracy high and the demo tight.
 - **Shrink analytics:** which items / times / suppliers spoil most → supplier
   scorecards and smarter ordering.
 - **Vertical-integrate the two models:** shelf scans feed the LSTM → demand-aware
@@ -81,12 +86,23 @@ compliance value. A 500-store chain → **~€9M/year impact.**
 ### Long-term — platform & moat
 - **Whole cold chain:** distribution-center intake QC, supplier accept/reject
   dispute settlement, in-transit monitoring. Bigger contracts, longer cycles.
-- **All perishables:** bakery, meat, dairy, florals — same pipeline. Extension is
-  data-ready, not hypothetical: public meat-freshness datasets already exist
-  (e.g. Kaggle "Meat Freshness Image Dataset", 2,266 imgs labeled
-  Fresh/Half-Fresh/Spoiled — which maps directly onto our fresh/sell-soon/reject
-  tiers; and MeatScan, ~11k real-market images). Same two-stage approach, new
-  fine-tune.
+- **All perishables:** meat, fish, bakery, dairy, florals — same two-stage
+  pipeline, new fine-tune per category. The extension is **data-ready, not
+  hypothetical** — public datasets already exist for each direction, and several
+  use 3-tier freshness labels that map directly onto our fresh / sell-soon /
+  reject tiers:
+  - **Meat:** Kaggle "Meat Freshness Image Dataset" (2,266 imgs, Fresh /
+    Half-Fresh / Spoiled); MeatScan (~11k real-market images); a chicken-meat
+    freshness set.
+  - **Fish:** Kaggle "Fish Freshness Classification" + "Fish Freshness
+    Detection"; the FFE (Fish-Eye) set (~4,390 imgs across 8 species, 3
+    freshness levels).
+  - **Bakery:** Kaggle "Moldy Bread Image Dataset" (mould detection on bread).
+  - **General:** "Fresh and Spoiled Food Image Dataset" spanning multiple food
+    types for broader coverage.
+
+  This is the credibility point: "extends to other perishables" isn't
+  hand-waving — the labeled data to train each next category is already public.
 - **Compliance-as-a-service:** auto-generate Law 1/2025 + EU CSRD
   waste-prevention reports from scan logs. Selling a legal obligation, not just
   an optimization.
