@@ -10,10 +10,11 @@ pillow
 numpy
 matplotlib
 
-# Metrics / data / eval (notebook 02b)
+# Metrics / data / eval (notebook 02b) + forecasting (notebook 03)
 scikit-learn
 pandas
-seaborn  # confusion-matrix heatmap in evaluation
+seaborn   # confusion-matrix heatmap in evaluation
+joblib    # persisted MinMaxScaler for the LSTM forecast (backend/forecast.py)
 
 # Backend
 fastapi

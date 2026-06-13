@@ -33,8 +33,16 @@ SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 CONFIDENCE_TAU = 0.70       # below this top-class confidence → abstain ("review")
 
 # Overridden at load time by models/class_names.json (training export).
-DEFAULT_CLASSES = ["fresh_apple", "fresh_banana", "fresh_orange", "fresh_carrot",
-                   "rotten_apple", "rotten_banana", "rotten_orange", "rotten_carrot"]
+# 10 produce types x {fresh, rotten}; only apple/banana/orange/carrot are
+# COCO-detectable — the rest are graded via the center-crop fallback.
+DEFAULT_CLASSES = [
+    "fresh_apple", "fresh_banana", "fresh_bellpepper", "fresh_carrot",
+    "fresh_cucumber", "fresh_mango", "fresh_orange", "fresh_potato",
+    "fresh_strawberry", "fresh_tomato",
+    "rotten_apple", "rotten_banana", "rotten_bellpepper", "rotten_carrot",
+    "rotten_cucumber", "rotten_mango", "rotten_orange", "rotten_potato",
+    "rotten_strawberry", "rotten_tomato",
+]
 
 
 def _b64_png(img_bgr: np.ndarray) -> str:
@@ -72,8 +80,18 @@ def markdown_recommendation(tier: str, severity: float) -> str:
 
 
 # Typical EU unit retail price per item (€) — for the live "money recovered" demo.
-UNIT_PRICE = {"apple": 0.40, "banana": 0.25, "orange": 0.50, "carrot": 0.15}
+UNIT_PRICE = {
+    "apple": 0.40, "banana": 0.25, "orange": 0.50, "carrot": 0.15,
+    "tomato": 0.30, "potato": 0.20, "cucumber": 0.45, "bellpepper": 0.60,
+    "mango": 0.90, "strawberry": 1.80,
+}
 RECOVERY_RATE = 0.60  # a marked-down "sell soon" item recovers ~60% of its price
+
+
+def produce_from_label(label: str) -> str:
+    """'rotten_bellpepper' -> 'bellpepper' (the produce type, for the
+    classifier-only fallback path where YOLO gave us no class)."""
+    return label.split("_", 1)[1] if label and "_" in label else "item"
 
 
 def recovered_value(tier: str, fruit: str) -> float:
@@ -218,6 +236,28 @@ class FreshGuardPipeline:
                 else:
                     det.update({"label": None, "tier": "untrained",
                                 "note": "classifier not trained yet — run notebook 02"})
+                detections.append(det)
+
+        # Fallback: YOLO detects only apple/banana/orange/carrot (COCO). For the
+        # other produce types (tomato, mango, …) it finds no box — so in single
+        # mode we classify the center crop directly, no detection needed.
+        if not detections and mode == "single" and self.classifier is not None:
+            h, w = frame_bgr.shape[:2]
+            s = min(h, w)
+            y0, x0 = (h - s) // 2, (w - s) // 2
+            crop = frame_bgr[y0:y0 + s, x0:x0 + s]
+            if crop.size > 0:
+                softmax = self.classifier.predict(self._preprocess(crop), verbose=0)[0]
+                fruit = produce_from_label(self.class_names[int(np.argmax(softmax))])
+                det = {"box": [x0, y0, x0 + s, y0 + s], "fruit": fruit,
+                       "track_id": None, "det_conf": None, "source": "fallback"}
+                det.update(self._grade(softmax, fruit))
+                det["fruit_agreement"] = None  # no detector opinion in fallback
+                sev = rot_area_fraction(crop)
+                det["severity"] = round(sev, 3)
+                det["action"] = markdown_recommendation(det["tier"], sev)
+                det["unit_price"] = UNIT_PRICE.get(fruit, 0.30)
+                det["recovered"] = recovered_value(det["tier"], fruit)
                 detections.append(det)
 
         # Grad-CAM on the largest fruit only (single mode, opt-in: it's slow)
