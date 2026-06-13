@@ -31,6 +31,8 @@ IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 CONFIDENCE_TAU = 0.70       # below this top-class confidence → abstain ("review")
+DETECT_CONF = 0.25          # YOLO detection threshold (lower = easier to detect)
+WHITE_BALANCE = True        # neutralize warm-light colour cast before inference
 
 # Overridden at load time by models/class_names.json (training export).
 # 10 produce types x {fresh, rotten}; only apple/banana/orange/carrot are
@@ -48,6 +50,17 @@ DEFAULT_CLASSES = [
 def _b64_png(img_bgr: np.ndarray) -> str:
     ok, buf = cv2.imencode(".png", img_bgr)
     return base64.b64encode(buf).decode() if ok else ""
+
+
+def white_balance(img_bgr: np.ndarray) -> np.ndarray:
+    """Gray-world white balance — neutralizes a warm/cool lighting colour cast
+    so a real apple under warm light stops drifting toward 'orange'. Classic CV
+    (course session 2). Conservative clip avoids over-correction."""
+    f = img_bgr.astype(np.float32)
+    avg = f.reshape(-1, 3).mean(axis=0)            # per-channel mean (B, G, R)
+    scale = avg.mean() / (avg + 1e-6)
+    scale = np.clip(scale, 0.7, 1.5)               # don't over-push any channel
+    return np.clip(f * scale, 0, 255).astype(np.uint8)
 
 
 def rot_area_fraction(crop_bgr: np.ndarray) -> float:
@@ -205,13 +218,15 @@ class FreshGuardPipeline:
         mode='single'   → plain detection, optional Grad-CAM on largest fruit
         mode='conveyor' → tracking + per-track majority vote + session counts
         """
+        if WHITE_BALANCE:
+            frame_bgr = white_balance(frame_bgr)   # counter lighting colour cast
         if mode == "conveyor":
             results = self.detector.track(
                 frame_bgr, persist=True, classes=list(COCO_FRUIT),
-                conf=0.35, verbose=False)
+                conf=DETECT_CONF, verbose=False)
         else:
             results = self.detector(
-                frame_bgr, classes=list(COCO_FRUIT), conf=0.35, verbose=False)
+                frame_bgr, classes=list(COCO_FRUIT), conf=DETECT_CONF, verbose=False)
 
         detections = []
         boxes = results[0].boxes

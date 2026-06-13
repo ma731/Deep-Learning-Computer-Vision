@@ -26,6 +26,15 @@ const TIERS = {
   untrained: { color: "#61748c", text: "MODEL NOT TRAINED" },
 };
 
+/* ---------------- hero → app ---------------- */
+$("hero-enter").onclick = () => {
+  const hero = $("hero");
+  $("app").hidden = false;
+  hero.classList.add("leaving");
+  setTimeout(() => { hero.style.display = "none"; }, 700);
+  fetchForecast(false);   // now the outlook card is visible — size the sparkline
+};
+
 /* ---------------- tabs ---------------- */
 const views = { scan: $("view-scan"), dashboard: $("view-dashboard") };
 $("tab-scan").onclick = () => switchTab("scan");
@@ -147,7 +156,7 @@ function render(data) {
     ctx.restore();
     const tag = `${prettyFruit(d.fruit).toUpperCase()}${d.track_id != null ? " #" + d.track_id : ""} · ${s.text}` +
                 (d.confidence != null ? ` ${(d.confidence * 100).toFixed(0)}%` : "");
-    ctx.font = `600 ${Math.max(13, overlay.width / 48)}px Inter, sans-serif`;
+    ctx.font = `600 ${Math.max(13, overlay.width / 48)}px "Hanken Grotesk", sans-serif`;
     const pad = 7, tw = ctx.measureText(tag).width + pad * 2, th = Math.max(20, overlay.width / 34);
     ctx.fillStyle = s.color;
     roundRect(ctx, x1, Math.max(0, y1 - th - 2), tw, th, 6); ctx.fill();
