@@ -8,11 +8,13 @@ the frontend is never blocked on training.
 
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 LSTM_PATH = MODELS_DIR / "spoilage_lstm.keras"
+SCALER_PATH = MODELS_DIR / "spoilage_scaler.pkl"
 HISTORY_PATH = MODELS_DIR / "scan_history.csv"
 
 WINDOW = 28      # days the LSTM looks back
@@ -20,17 +22,105 @@ HORIZON = 7      # days it predicts
 
 
 def simulate_history(days: int = 730, seed: int = 42) -> pd.DataFrame:
-    """Simulated daily 'reject + sell_soon' scan counts for one store.
-    Same generator as notebook 03 (keep the seed in sync)."""
+    """Simulated daily 'reject + sell_soon' scan counts for one Spanish store.
+
+    Weekly and yearly seasonality on a slow growth trend, plus three
+    Spain-specific calendar effects a weekly-lag baseline cannot anticipate:
+    national public holidays, end-of-month clearance promotions, and summer
+    demand volatility. Each effect spans several days so the LSTM can learn the
+    momentum the naive lag misses. Same generator as notebook 03 (keep the
+    seed in sync)."""
     rng = np.random.default_rng(seed)
     t = np.arange(days)
-    weekly = 8 * np.sin(2 * np.pi * t / 7 - 1.2)          # weekend spikes
-    yearly = 12 * np.sin(2 * np.pi * t / 365 + 0.5)       # summer bump
+    dates = pd.date_range(end=pd.Timestamp.today().normalize(), periods=days)
+
+    weekly = 8 * np.sin(2 * np.pi * t / 7 - 1.2)          # weekend rotation peaks
+    yearly = 12 * np.sin(2 * np.pi * t / 365 + 0.5)       # summer freshness pressure
     trend = 0.01 * t                                       # store growth
     base = 60
-    counts = base + weekly + yearly + trend + rng.normal(0, 4, days)
-    dates = pd.date_range(end=pd.Timestamp.today().normalize(), periods=days)
+    noise = rng.normal(0, 4, days)
+
+    # Spanish national public holidays (fixed dates). Around a closure, rotation
+    # stalls and pre-holiday overstocking inflates the surrounding days.
+    holidays_md = {(1, 1), (1, 6), (5, 1), (8, 15), (10, 12),
+                   (11, 1), (12, 6), (12, 8), (12, 25)}
+    holiday = np.zeros(days)
+    for i, d in enumerate(dates):
+        if (d.month, d.day) in holidays_md:
+            holiday[i] += 14                       # closure-day backlog
+            if i + 1 < days:
+                holiday[i + 1] += 9                # spillover the day after
+            if i - 1 >= 0:
+                holiday[i - 1] += 5                # pre-holiday overstock
+
+    # End-of-month clearance promotions: near-expiry loose produce flagged for
+    # markdown (Law 1/2025). A ~monthly block never aligns to the 7-day lag.
+    promo = np.where(dates.day >= 27, 7.0, 0.0)
+
+    # Summer demand volatility (Jul-Aug): the August holiday exodus and tourism
+    # swings make demand hard to predict, so ordering overshoots and overstocked
+    # ambient produce sits and gets flagged. Irregular multi-day episodes.
+    summer = np.zeros(days)
+    summer_idx = np.where(np.isin(dates.month, [7, 8]))[0]
+    if len(summer_idx) > 0:
+        n_episodes = max(1, len(summer_idx) // 20)
+        for s in rng.choice(summer_idx, size=n_episodes, replace=False):
+            length = int(rng.integers(3, 6))       # 3-5 day episodes
+            peak = rng.uniform(10, 20)
+            for k in range(length):
+                if s + k < days:
+                    summer[s + k] += peak * (1 - k / length)   # eases as stock clears
+
+    counts = base + weekly + yearly + trend + noise + holiday + promo + summer
     return pd.DataFrame({"date": dates, "flagged_items": counts.clip(min=0).round(1)})
+
+
+def build_features(dates, target_scaled: np.ndarray) -> np.ndarray:
+    """
+    Stack the scaled count with deterministic calendar features.
+
+    Columns: [scaled_count, dow_sin, dow_cos, doy_sin, doy_cos, is_holiday, is_promo].
+    The calendar columns depend only on the date, so at inference the next seven days
+    are fully determined by the window's last date. This is what lets the LSTM
+    anticipate the holiday closures and end-of-month markdown block that a weekly-lag
+    baseline structurally cannot see. Kept byte-identical with notebook 03.
+
+    Parameters
+    ----------
+    dates : array-like of datetime
+        Calendar dates aligned row-for-row with target_scaled.
+    target_scaled : np.ndarray
+        Count series already scaled to [0, 1].
+
+    Returns
+    -------
+    np.ndarray, shape (len(dates), 7)
+        Per-day feature matrix.
+    """
+    dates = pd.DatetimeIndex(dates)
+    dow = dates.dayofweek.to_numpy()
+    doy = dates.dayofyear.to_numpy()
+    dom = dates.day.to_numpy()
+
+    dow_sin = np.sin(2 * np.pi * dow / 7)
+    dow_cos = np.cos(2 * np.pi * dow / 7)
+    doy_sin = np.sin(2 * np.pi * doy / 365)
+    doy_cos = np.cos(2 * np.pi * doy / 365)
+
+    holidays_md = {(1, 1), (1, 6), (5, 1), (8, 15), (10, 12),
+                   (11, 1), (12, 6), (12, 8), (12, 25)}
+    is_holiday = np.zeros(len(dates))
+    for i, d in enumerate(dates):
+        if (d.month, d.day) in holidays_md:
+            is_holiday[i] = 1.0                      # closure day
+            if i + 1 < len(dates):
+                is_holiday[i + 1] = 1.0              # day-after spillover
+            if i - 1 >= 0:
+                is_holiday[i - 1] = 1.0              # pre-holiday overstock
+    is_promo = (dom >= 27).astype(float)            # end-of-month markdown block
+
+    return np.column_stack([target_scaled, dow_sin, dow_cos,
+                            doy_sin, doy_cos, is_holiday, is_promo])
 
 
 def get_forecast() -> dict:
@@ -42,19 +132,26 @@ def get_forecast() -> dict:
     series = df["flagged_items"].to_numpy(dtype=np.float32)
     lstm_used = False
 
-    if LSTM_PATH.exists():
+    if LSTM_PATH.exists() and SCALER_PATH.exists():
         import tensorflow as tf
         model = tf.keras.models.load_model(LSTM_PATH)
-        lo, hi = series.min(), series.max()
-        scaled = (series - lo) / (hi - lo + 1e-8)
-        window = scaled[-WINDOW:][np.newaxis, :, np.newaxis]
-        pred = model.predict(window, verbose=0)[0]
-        forecast = (pred * (hi - lo) + lo).tolist()
+        # use the persisted scaler so inference normalisation matches training exactly
+        scaler = joblib.load(SCALER_PATH)
+        scaled = scaler.transform(series.reshape(-1, 1)).flatten()
+        # rebuild the exact training features, then feed the last 28-day window
+        feat = build_features(df["date"], scaled)
+        window_input = feat[-WINDOW:][np.newaxis, :, :]
+        pred_scaled = model.predict(window_input, verbose=0)[0]
+        forecast = scaler.inverse_transform(
+            pred_scaled.reshape(-1, 1)
+        ).flatten().tolist()
         lstm_used = True
     else:
-        # naive seasonal fallback: average of the last 4 same-weekdays
-        forecast = [float(np.mean(series[-(7 * k):][::7][:4]))
-                    for k in range(1, HORIZON + 1)]
+        # seasonal naive: forecast each day as the same weekday one week back.
+        # offset -(8-h) maps h=1..7 to lookback[-7..-1], i.e. last week's
+        # matching weekday, with no clamping or duplicate outputs
+        lookback = series[-WINDOW:]
+        forecast = [float(lookback[-(8 - h)]) for h in range(1, HORIZON + 1)]
 
     last_date = df["date"].iloc[-1]
     future_dates = pd.date_range(last_date + pd.Timedelta(days=1), periods=HORIZON)
