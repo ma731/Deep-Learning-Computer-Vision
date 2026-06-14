@@ -20,6 +20,23 @@ HISTORY_PATH = MODELS_DIR / "scan_history.csv"
 WINDOW = 28      # days the LSTM looks back
 HORIZON = 7      # days it predicts
 
+# Loading a Keras model + scaler off disk costs hundreds of ms; the dashboard
+# would pay that on every refresh. Load once, cache for the process lifetime.
+_MODEL_CACHE: dict = {}
+
+
+def _load_lstm():
+    """Return (model, scaler), loading from disk only on first call. Returns
+    (None, None) if the trained artefacts aren't present yet (naive fallback)."""
+    if not (LSTM_PATH.exists() and SCALER_PATH.exists()):
+        return None, None
+    if "model" not in _MODEL_CACHE:
+        import tensorflow as tf
+        _MODEL_CACHE["model"] = tf.keras.models.load_model(LSTM_PATH)
+        # persisted scaler so inference normalisation matches training exactly
+        _MODEL_CACHE["scaler"] = joblib.load(SCALER_PATH)
+    return _MODEL_CACHE["model"], _MODEL_CACHE["scaler"]
+
 
 def simulate_history(days: int = 730, seed: int = 42) -> pd.DataFrame:
     """Simulated daily 'reject + sell_soon' scan counts for one Spanish store.
@@ -165,11 +182,8 @@ def get_forecast(live_flagged: int | None = None) -> dict:
     series = df["flagged_items"].to_numpy(dtype=np.float32)
     lstm_used = False
 
-    if LSTM_PATH.exists() and SCALER_PATH.exists():
-        import tensorflow as tf
-        model = tf.keras.models.load_model(LSTM_PATH)
-        # use the persisted scaler so inference normalisation matches training exactly
-        scaler = joblib.load(SCALER_PATH)
+    model, scaler = _load_lstm()
+    if model is not None:
         scaled = scaler.transform(series.reshape(-1, 1)).flatten()
         # rebuild the exact training features, then feed the last 28-day window
         feat = build_features(df["date"], scaled)
