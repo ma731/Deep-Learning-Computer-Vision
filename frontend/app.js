@@ -26,10 +26,19 @@ const TIERS = {
   untrained: { color: "#61748c", text: "MODEL NOT TRAINED" },
 };
 
+/* ---------------- hero → app ---------------- */
+$("hero-enter").onclick = () => {
+  const hero = $("hero");
+  $("app").hidden = false;
+  hero.classList.add("leaving");
+  setTimeout(() => { hero.style.display = "none"; }, 700);
+  fetchForecast(false);   // now the outlook card is visible — size the sparkline
+};
+
 /* ---------------- tabs ---------------- */
 const views = { scan: $("view-scan"), dashboard: $("view-dashboard") };
 $("tab-scan").onclick = () => switchTab("scan");
-$("tab-dashboard").onclick = () => { switchTab("dashboard"); loadForecast(); };
+$("tab-dashboard").onclick = () => { switchTab("dashboard"); fetchForecast(mode === "conveyor"); };
 function switchTab(name) {
   for (const [k, el] of Object.entries(views)) el.hidden = k !== name;
   $("tab-scan").classList.toggle("is-active", name === "scan");
@@ -63,6 +72,7 @@ async function startCamera() {
   } catch (e) { alert("Camera access denied or unavailable. You can still use Upload."); return; }
   video.srcObject = stream;
   $("video-empty").hidden = true;
+  $("scanline").hidden = false;
   $("btn-explain").disabled = false;
   $("fps-badge").hidden = false;
   await listCameras();
@@ -84,6 +94,9 @@ function setMode(m) {
   $("recovered-card").hidden = !conveyor;
   $("btn-reset").hidden = !conveyor;
   $("heatmap-box").hidden = true;
+  // close the loop: in conveyor mode, keep re-forecasting on the live tally
+  if (fcTimer) { clearInterval(fcTimer); fcTimer = null; }
+  if (conveyor) fcTimer = setInterval(() => fetchForecast(true), 4000);
 }
 $("mode-single").onclick = () => setMode("single");
 $("mode-conveyor").onclick = () => setMode("conveyor");
@@ -135,12 +148,15 @@ function render(data) {
   for (const d of dets) {
     const [x1, y1, x2, y2] = d.box;
     const s = TIERS[d.tier] || TIERS.untrained;
-    ctx.lineWidth = Math.max(2, overlay.width / 320);
+    ctx.save();
+    ctx.shadowColor = s.color; ctx.shadowBlur = 16;   // glow
+    ctx.lineWidth = Math.max(2.5, overlay.width / 300);
     ctx.strokeStyle = s.color;
-    roundRect(ctx, x1, y1, x2 - x1, y2 - y1, 8); ctx.stroke();
+    roundRect(ctx, x1, y1, x2 - x1, y2 - y1, 10); ctx.stroke();
+    ctx.restore();
     const tag = `${prettyFruit(d.fruit).toUpperCase()}${d.track_id != null ? " #" + d.track_id : ""} · ${s.text}` +
                 (d.confidence != null ? ` ${(d.confidence * 100).toFixed(0)}%` : "");
-    ctx.font = `600 ${Math.max(13, overlay.width / 48)}px Inter, sans-serif`;
+    ctx.font = `600 ${Math.max(13, overlay.width / 48)}px "Hanken Grotesk", sans-serif`;
     const pad = 7, tw = ctx.measureText(tag).width + pad * 2, th = Math.max(20, overlay.width / 34);
     ctx.fillStyle = s.color;
     roundRect(ctx, x1, Math.max(0, y1 - th - 2), tw, th, 6); ctx.fill();
@@ -185,15 +201,28 @@ function render(data) {
 
 function setVerdict(tier, label, sub) {
   const v = $("verdict");
+  const changed = v.dataset.tier !== tier;
   v.className = "verdict card " + (tier === "idle" ? "" : tier);
+  v.dataset.tier = tier;
+  if (changed) {            // re-trigger the pop animation on a real change
+    v.classList.remove("pop"); void v.offsetWidth; v.classList.add("pop");
+  }
   $("verdict-label").textContent = label;
   $("verdict-sub").textContent = sub;
 }
 
-/* smooth count-up for the money counter */
+/* smooth count-up for the money counter, with a bump + floating "+€x" on gains */
 function animateMoney(target) {
   const start = displayedRecovered, delta = target - start;
   if (Math.abs(delta) < 0.005) return;
+  if (delta > 0) {
+    const el = $("recovered-value");
+    el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+    const gain = document.createElement("span");
+    gain.className = "float-gain"; gain.textContent = "+€" + delta.toFixed(2);
+    $("recovered-card").appendChild(gain);
+    gain.addEventListener("animationend", () => gain.remove(), { once: true });
+  }
   const dur = 600, t0 = performance.now();
   function step(now) {
     const p = Math.min(1, (now - t0) / dur);
@@ -216,11 +245,47 @@ function roundRect(c, x, y, w, h, r) {
   c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 
-/* ---------------- dashboard ---------------- */
-let chart = null;
-async function loadForecast() {
-  const data = await (await fetch(`${API}/api/forecast`)).json();
+/* ---------------- forecast (RNN) — surfaced on scan screen + dashboard ---------------- */
+let chart = null, fcTimer = null;
+
+async function fetchForecast(live) {
+  try {
+    const data = await (await fetch(`${API}/api/forecast?live=${live ? "true" : "false"}`)).json();
+    renderOutlook(data);
+    if (!views.dashboard.hidden) renderDash(data);
+    return data;
+  } catch (e) { /* ignore */ }
+}
+
+// compact RNN card on the scan screen
+function renderOutlook(d) {
+  const ap = d.action_plan || {};
+  $("ol-total").textContent = ap.week_total ?? "—";
+  $("ol-action").textContent = ap.markdown_alert || ap.reorder || "";
+  $("outlook-live").hidden = !(d.live_flagged_today > 0);
+  drawSpark(d.forecast.values);
+}
+
+function drawSpark(vals) {
+  const cv = $("ol-spark"); if (!cv || !vals || !vals.length) return;
+  const w = cv.width = cv.clientWidth || 260, h = cv.height = 34;
+  const c = cv.getContext("2d"); c.clearRect(0, 0, w, h);
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx - mn) || 1;
+  c.beginPath();
+  vals.forEach((v, i) => {
+    const x = i / (vals.length - 1) * (w - 4) + 2, y = h - 3 - ((v - mn) / rng) * (h - 8);
+    i ? c.lineTo(x, y) : c.moveTo(x, y);
+  });
+  c.strokeStyle = "#f5b53d"; c.lineWidth = 2; c.lineJoin = "round"; c.stroke();
+}
+
+// full dashboard: chart + KPIs + action plan
+function renderDash(data) {
   $("forecast-note").textContent = data.note || "next 7 days · LSTM forecast";
+  const ap = data.action_plan || {};
+  $("ap-reorder").textContent = ap.reorder || "—";
+  $("ap-markdown").textContent = ap.markdown_alert || "—";
+  $("ap-live").textContent = (data.live_flagged_today || 0) + " items flagged today (live)";
   const labels = [...data.history.dates, ...data.forecast.dates];
   const hist = [...data.history.values, ...Array(data.forecast.dates.length).fill(null)];
   const fore = [...Array(data.history.dates.length - 1).fill(null),
@@ -255,3 +320,4 @@ async function loadForecast() {
 /* init */
 listCameras().catch(() => {});
 setMode("single");
+fetchForecast(false);   // populate the scan-screen outlook card on load

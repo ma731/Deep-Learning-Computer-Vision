@@ -31,6 +31,8 @@ IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 CONFIDENCE_TAU = 0.70       # below this top-class confidence → abstain ("review")
+DETECT_CONF = 0.25          # YOLO detection threshold (lower = easier to detect)
+WHITE_BALANCE = True        # neutralize warm-light colour cast before inference
 
 # Overridden at load time by models/class_names.json (training export).
 # 10 produce types x {fresh, rotten}; only apple/banana/orange/carrot are
@@ -48,6 +50,17 @@ DEFAULT_CLASSES = [
 def _b64_png(img_bgr: np.ndarray) -> str:
     ok, buf = cv2.imencode(".png", img_bgr)
     return base64.b64encode(buf).decode() if ok else ""
+
+
+def white_balance(img_bgr: np.ndarray) -> np.ndarray:
+    """Gray-world white balance — neutralizes a warm/cool lighting colour cast
+    so a real apple under warm light stops drifting toward 'orange'. Classic CV
+    (course session 2). Conservative clip avoids over-correction."""
+    f = img_bgr.astype(np.float32)
+    avg = f.reshape(-1, 3).mean(axis=0)            # per-channel mean (B, G, R)
+    scale = avg.mean() / (avg + 1e-6)
+    scale = np.clip(scale, 0.7, 1.5)               # don't over-push any channel
+    return np.clip(f * scale, 0, 255).astype(np.uint8)
 
 
 def rot_area_fraction(crop_bgr: np.ndarray) -> float:
@@ -120,16 +133,24 @@ class FreshGuardPipeline:
         self.session_counts: dict[int, str] = {}
         self.session_value: dict[int, float] = {}  # € recovered per track id
         self.queued_ids: set[int] = set()          # track ids already sent to review
+        self.single_history: deque = deque(maxlen=SMOOTH_WINDOW)  # single-mode smoothing
 
     @property
     def model_loaded(self) -> bool:
         return self.classifier is not None
+
+    def live_flagged(self) -> int:
+        """Items flagged this conveyor session (sell_soon + reject) — feeds the
+        live forecast loop (CNN scans → RNN re-forecast)."""
+        return sum(1 for t in self.session_counts.values()
+                   if t in ("sell_soon", "reject"))
 
     def reset_session(self):
         self.track_history.clear()
         self.session_counts.clear()
         self.session_value.clear()
         self.queued_ids.clear()
+        self.single_history.clear()
 
     def _enqueue_review(self, crop_bgr: np.ndarray, det: dict, track_id: int):
         """Save the crop + log one row so the item can be re-labeled and folded
@@ -156,9 +177,15 @@ class FreshGuardPipeline:
         return preprocess_input(rgb.astype(np.float32))[np.newaxis]
 
     def _grade(self, softmax: np.ndarray, yolo_fruit: str) -> dict:
-        """Turn a (possibly smoothed) softmax into a business decision."""
+        """Turn a (possibly smoothed) softmax into a business decision.
+
+        We grade on the classifier's own (smoothed) prediction — fresh/rotten
+        depends on decay, which the classifier reads well; identity confusion
+        (e.g. a warm-lit red apple) shows up as low confidence and is caught by
+        the abstain gate below rather than being papered over."""
         idx = int(np.argmax(softmax))
         label = self.class_names[idx]
+        confidence = float(softmax[idx])
         rotten_prob = float(sum(p for name, p in zip(self.class_names, softmax)
                                 if name.startswith("rotten")))
         if rotten_prob >= SELL_SOON_BAND[1]:
@@ -169,11 +196,9 @@ class FreshGuardPipeline:
             tier = "fresh"
         # confidence gate: if the model isn't sure enough, abstain rather than
         # guess — the item is flagged for human review (active-learning loop).
-        confidence = float(softmax[idx])
         tier_raw = tier  # what it *would* have called it (for the deck/debug)
         if confidence < CONFIDENCE_TAU:
             tier = "review"
-        # integrity check: detector and classifier should agree on the fruit
         agree = yolo_fruit in label
         return {
             "label": label,
@@ -193,13 +218,15 @@ class FreshGuardPipeline:
         mode='single'   → plain detection, optional Grad-CAM on largest fruit
         mode='conveyor' → tracking + per-track majority vote + session counts
         """
+        if WHITE_BALANCE:
+            frame_bgr = white_balance(frame_bgr)   # counter lighting colour cast
         if mode == "conveyor":
             results = self.detector.track(
                 frame_bgr, persist=True, classes=list(COCO_FRUIT),
-                conf=0.35, verbose=False)
+                conf=DETECT_CONF, verbose=False)
         else:
             results = self.detector(
-                frame_bgr, classes=list(COCO_FRUIT), conf=0.35, verbose=False)
+                frame_bgr, classes=list(COCO_FRUIT), conf=DETECT_CONF, verbose=False)
 
         detections = []
         boxes = results[0].boxes
@@ -219,6 +246,10 @@ class FreshGuardPipeline:
                     if track_id is not None:
                         self.track_history[track_id].append(softmax)
                         softmax = np.mean(self.track_history[track_id], axis=0)
+                    elif len(boxes) == 1:
+                        # single mode, one item held up → smooth over recent frames
+                        self.single_history.append(softmax)
+                        softmax = np.mean(self.single_history, axis=0)
                     det.update(self._grade(softmax, fruit))
                     severity = rot_area_fraction(crop)
                     det["severity"] = round(severity, 3)
