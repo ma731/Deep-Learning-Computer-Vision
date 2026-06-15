@@ -26,6 +26,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 pipeline = FreshGuardPipeline()
 
 
+@app.on_event("startup")
+def _warmup():
+    """Pay the first-inference cost (graph tracing, weight init, model load)
+    at boot so the first live scan and dashboard load are snappy on stage."""
+    try:
+        pipeline.warmup()
+        get_forecast()  # also primes the cached LSTM for the first dashboard hit
+    except Exception:
+        pass  # warm-up is best-effort; never block startup on it
+
+
 def _read_image(data: bytes) -> np.ndarray:
     """Bytes → BGR ndarray (what OpenCV/YOLO expect)."""
     img = Image.open(io.BytesIO(data)).convert("RGB")

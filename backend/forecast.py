@@ -32,7 +32,8 @@ def _load_lstm():
         return None, None
     if "model" not in _MODEL_CACHE:
         import tensorflow as tf
-        _MODEL_CACHE["model"] = tf.keras.models.load_model(LSTM_PATH)
+        # compile=False: inference only, faster load, no optimizer restore
+        _MODEL_CACHE["model"] = tf.keras.models.load_model(LSTM_PATH, compile=False)
         # persisted scaler so inference normalisation matches training exactly
         _MODEL_CACHE["scaler"] = joblib.load(SCALER_PATH)
     return _MODEL_CACHE["model"], _MODEL_CACHE["scaler"]
