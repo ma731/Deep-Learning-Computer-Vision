@@ -124,7 +124,9 @@ class FreshGuardPipeline:
         self.class_names = DEFAULT_CLASSES
         if CLASSIFIER_PATH.exists():
             import tensorflow as tf
-            self.classifier = tf.keras.models.load_model(CLASSIFIER_PATH)
+            # compile=False: inference only, skip restoring the optimizer state
+            # (faster load, avoids Keras 3 optimizer-deserialization warnings)
+            self.classifier = tf.keras.models.load_model(CLASSIFIER_PATH, compile=False)
             if CLASS_NAMES_PATH.exists():
                 self.class_names = json.loads(CLASS_NAMES_PATH.read_text())
         # softmax history per track id (conveyor mode smoothing)
@@ -138,6 +140,15 @@ class FreshGuardPipeline:
     @property
     def model_loaded(self) -> bool:
         return self.classifier is not None
+
+    def warmup(self):
+        """Run one dummy inference per model so the *first* real scan isn't
+        slowed by lazy graph tracing / weight init. Called once at startup;
+        side-effect free (no detections to record, no session state touched)."""
+        self.detector(np.zeros((640, 640, 3), dtype=np.uint8), verbose=False)
+        if self.classifier is not None:
+            dummy = np.zeros((1, IMG_SIZE, IMG_SIZE, 3), dtype=np.float32)
+            self.classifier(dummy, training=False)
 
     def live_flagged(self) -> int:
         """Items flagged this conveyor session (sell_soon + reject) — feeds the
