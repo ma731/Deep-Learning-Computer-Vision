@@ -38,16 +38,27 @@ $("hero-enter").onclick = () => {
 };
 
 /* ---------------- app → home ---------------- */
-function goHome() {
+// Turn the camera off: stop the inference loop, release the camera (this is
+// what switches off the webcam light / the phone's rear lens), and restore the
+// "start" panel. Same behaviour on laptop and phone (one web app).
+function stopCamera() {
   if (loopTimer) { clearInterval(loopTimer); loopTimer = null; }
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  $("app").hidden = true;
-  const intro = $("story"); if (intro) { intro.classList.remove("leaving"); intro.style.display = ""; }
-  // reset the scan stage so it's clean on re-entry
+  if (video) video.srcObject = null;
   if ($("video-empty")) $("video-empty").hidden = false;
   $("video-wrap") && $("video-wrap").classList.remove("scanning");
+  if ($("scanline")) $("scanline").hidden = true;
+  if ($("btn-explain")) $("btn-explain").disabled = true;
+  if ($("btn-stop")) $("btn-stop").hidden = true;
   if ($("fps-badge")) $("fps-badge").hidden = true;
   if (window.ctxStatus) ctxStatus("ctx-cam", "idle", "");
+}
+if ($("btn-stop")) $("btn-stop").onclick = () => { stopCamera(); if (window.ctxActivity) ctxActivity("Camera turned off", "sys"); };
+
+function goHome() {
+  stopCamera();
+  $("app").hidden = true;
+  const intro = $("story"); if (intro) { intro.classList.remove("leaving"); intro.style.display = ""; }
   scrollTo(0, 0);
 }
 if ($("btn-home")) $("btn-home").onclick = goHome;
@@ -159,6 +170,7 @@ async function startCamera() {
   $("video-wrap").classList.add("scanning");   // reveal the live HUD
   $("scanline").hidden = false;
   $("btn-explain").disabled = false;
+  if ($("btn-stop")) $("btn-stop").hidden = false;   // reveal the "Turn off" control
   $("fps-badge").hidden = false;
   await listCameras();
   video.onloadedmetadata = () => {
