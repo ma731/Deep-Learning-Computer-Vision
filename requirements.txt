@@ -1,5 +1,8 @@
 # Core DL (course framework)
-tensorflow>=2.16,<2.20
+# Pinned exactly: the model is saved AND loaded under this version. A loose
+# range let Colab (2.20.0) drift from installs that resolved <2.20, producing a
+# BatchNorm `renorm` config mismatch that crashed the eval notebook on load.
+tensorflow==2.20.0
 
 # Detection + tracking (CV course labs)
 ultralytics>=8.2
