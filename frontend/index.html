@@ -4,182 +4,625 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FreshGuard · AI Produce Quality Control</title>
-  <meta name="description" content="Catch decay a day earlier. Sell it — don't bin it. Real-time AI freshness grading for perishable retail.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23a8ff35'/%3E%3Cpath d='M12 4.5c3.2 1.5 4.7 4.2 4.7 7.4a4.7 4.7 0 0 1-9.4 0c0-1.1.3-2.2.8-3.2' fill='none' stroke='%230e120c' stroke-width='1.7' stroke-linecap='round'/%3E%3Cpath d='M9.4 11.3l2 2 3.2-3.5' fill='none' stroke='%230e120c' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta name="description" content="Catch decay a day earlier. Sell it, don't bin it. Real-time AI freshness grading for perishable retail.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="fx.css?v=24">
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
 </head>
 <body>
-  <!-- atmosphere layers -->
   <div class="grain" aria-hidden="true"></div>
-  <div class="bg-glow" aria-hidden="true"></div>
 
-  <!-- ============ HERO / LANDING ============ -->
-  <section class="hero" id="hero" aria-label="FreshGuard intro">
-    <div class="hero-img" aria-hidden="true"></div>
-    <div class="hero-veil" aria-hidden="true"></div>
-    <div class="hero-inner">
-      <div class="hero-kicker">IE University · Deep Learning</div>
-      <h1 class="hero-title">Fresh<span>Guard</span></h1>
-      <p class="hero-tag">Catch decay a day earlier.<br><em>Sell it — don't bin it.</em></p>
-      <p class="hero-sub">AI quality control for the produce hall — grading freshness in real time, recovering the margin that used to rot on the shelf.</p>
-      <button class="hero-cta" id="hero-enter">
-        Enter the Food Hall
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-      </button>
-      <div class="hero-stats">
-        <div><b>95.6%</b><span>grading accuracy</span></div>
-        <div class="div"></div>
-        <div><b>10</b><span>produce types</span></div>
-        <div class="div"></div>
-        <div><b>6×</b><span>ROI / store</span></div>
-      </div>
-    </div>
-    <svg class="hero-wave" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0,64 C240,120 480,16 720,48 C960,80 1200,128 1440,72 L1440,120 L0,120 Z"></path>
-    </svg>
-  </section>
-
-  <!-- ============ APP ============ -->
-  <div class="app" id="app" hidden>
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3c2.5 1.2 4 3.5 4 6.5a4 4 0 0 1-8 0c0-1 .2-1.9.6-2.7"/><path d="M12 3v3"/><path d="M9.5 11.5l1.7 1.7 3.3-3.3"/>
-          </svg>
-        </span>
-        <div class="brand-text"><strong>FreshGuard</strong><span>Produce Quality Control</span></div>
-      </div>
-      <nav class="tabs" role="tablist">
-        <button id="tab-scan" class="tab is-active" role="tab" aria-selected="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>
-          Live scan
-        </button>
-        <button id="tab-dashboard" class="tab" role="tab" aria-selected="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
-          Manager
-        </button>
-      </nav>
-      <div class="status-pill" id="model-status" title="Model status">
-        <span class="dot"></span><span id="status-text">connecting…</span>
+  <!-- ============ CONTINUOUS INTRO, one pinned engine, scroll-driven ============ -->
+  <section class="story" id="story" aria-label="FreshGuard intro">
+    <header class="hero-header">
+      <a class="hh-brand" href="https://www.ie.edu" target="_blank" rel="noopener" title="IE University">
+        <img src="assets/ie-logo.svg" class="hh-ie" alt="IE University">
+      </a>
+      <div class="hh-right">
+        <span class="hh-dl">Deep&nbsp;Learning</span>
+        <span class="hh-sub">Final Project · 2026</span>
       </div>
     </header>
+    <div class="story-progress" aria-hidden="true"><span id="story-bar"></span></div>
+    <div class="story-stage">
 
-    <main>
+      <!-- pinned viewfinder that morphs through the narrative -->
+      <div class="story-figure" aria-hidden="true">
+        <div class="viewfinder">
+          <span class="vf-corner tl"></span><span class="vf-corner tr"></span><span class="vf-corner bl"></span><span class="vf-corner br"></span>
+          <span class="vf-scan"></span>
+          <span class="vf-tag" id="vf-tag">VISION · IDLE</span>
+          <div class="story-ve" id="story-ve"></div>
+          <div class="vf-labels" id="vf-labels" aria-hidden="true">
+            <span class="vf-label tl">Detect<i>YOLOv8n</i></span>
+            <span class="vf-label tr">Grade<i>MobileNetV2</i></span>
+            <span class="vf-label ml">Track<i>ByteTrack</i></span>
+            <span class="vf-label mr">Explain<i>Grad-CAM</i></span>
+            <span class="vf-label bl">Forecast<i>LSTM</i></span>
+            <span class="vf-label br">Abstain<i>τ 0.70</i></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- scrolling narrative steps (step 0 is the hero / first frame) -->
+      <div class="story-steps">
+        <article class="step ip-hero is-active" data-step="0">
+          <p class="hero-kicker">AI Produce Quality Control · Computer Vision + RNN</p>
+          <h1 class="hero-title">Fresh<span>Guard</span></h1>
+          <p class="hero-tag">Catch decay a day earlier. <em>Sell it, don't bin it.</em></p>
+          <p class="panel-lead">A two stage vision pipeline grades every fruit &amp; veg <em>Fresh / Sell soon / Reject</em> in real time, then an LSTM forecasts spoilage a week out and recovers the margin that used to rot on the shelf.</p>
+          <button class="btn btn--primary hero-cta" id="hero-enter">
+            Enter the console
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+          </button>
+          <div class="hero-stack" aria-label="tech stack">
+            <span>YOLOv8n</span><span>ByteTrack</span><span>MobileNetV2</span><span>Transfer Learning</span><span>LSTM</span><span>Grad-CAM</span><span>20 classes</span>
+          </div>
+        </article>
+
+        <article class="step" data-step="1">
+          <p class="panel-kicker">The problem</p>
+          <h2 class="panel-title">Good food <em>rots</em> on the shelf.</h2>
+          <p class="panel-lead">Freshness is checked by eye, once or twice a shift. By the time someone flags decay, the window to <em>sell it at a markdown</em> is already gone, and the item is spoiling everything next to it.</p>
+        </article>
+
+        <article class="step" data-step="2">
+          <p class="panel-kicker">The stakes · why it matters</p>
+          <h2 class="panel-title"><em>€100k</em> a year, per store.</h2>
+          <p class="panel-lead">Produce is the worst shrink category in the store, up to <em>12% lost</em>. A typical store bins €75k to €120k of produce a year; on 2 to 3% grocery margins, every €1 saved is worth <em>€30 to €50 of revenue</em>.</p>
+        </article>
+
+        <article class="step" data-step="3">
+          <p class="panel-kicker">Three architectures · one verdict</p>
+          <h2 class="panel-title">We earned <em>95.6%</em>.</h2>
+          <p class="panel-lead">Same data, three models: a plain neural net (22.2%), a CNN from scratch (73.3%), then transfer learning. The pipeline grades each item <em>Fresh / Sell soon / Reject</em> at <em>0.99 AUC</em>, with a confidence gate that abstains when unsure.</p>
+        </article>
+
+        <article class="step" data-step="4">
+          <p class="panel-kicker">It learns the calendar</p>
+          <h2 class="panel-title"><em>+42.7%</em> sharper forecasts.</h2>
+          <p class="panel-lead">An LSTM reads 28 days of history and the Spanish retail calendar to forecast spoilage a week out, beating a naive baseline by <em>42.7% MAE</em>. Every scan you make sharpens the next forecast: the data flywheel.</p>
+        </article>
+
+        <article class="step" data-step="5">
+          <p class="panel-kicker">Compliant by design</p>
+          <h2 class="panel-title">Spain <em>Law 1/2025</em>.</h2>
+          <p class="panel-lead">The law prohibits binning edible produce and mandates discounting or donating items nearing expiry. Loose produce has <em>no expiry date</em>, so visual condition is the only auditable signal, and FreshGuard logs every call.</p>
+        </article>
+
+        <article class="step step--cta" data-step="6">
+          <p class="panel-kicker">See it live</p>
+          <h2 class="panel-title">Point a camera. <em>Grade the shelf.</em></h2>
+          <p class="panel-lead">Recovers about <em>€18k per store per year</em>, roughly 6× ROI with a two month payback. Built for IE University · Deep Learning.</p>
+          <button class="btn btn--primary story-enter" id="story-enter">
+            Enter the console
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+          </button>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ APP SHELL ============ -->
+  <div class="app" id="app" hidden>
+    <!-- sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5c3.2 1.5 4.7 4.2 4.7 7.4a4.7 4.7 0 0 1-9.4 0c0-1.1.3-2.2.8-3.2"/><path d="M9.4 11.3l2 2 3.2-3.5"/></svg>
+        </span>
+        <span class="brand-text"><b class="brand-name">FreshGuard</b><span class="brand-sub">Food Hall</span></span>
+      </div>
+      <button class="nav-collapse" id="btn-collapse" title="Collapse sidebar" aria-label="Collapse sidebar" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+
+      <nav class="nav" role="tablist">
+        <span class="nav-rail" id="nav-rail" aria-hidden="true"></span>
+        <button id="tab-scan" class="nav-item is-active" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Live scan</span>
+        </button>
+        <button id="tab-dashboard" class="nav-item" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
+          <span>Manager</span>
+        </button>
+        <button id="tab-market" class="nav-item" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg>
+          <span>Market</span>
+        </button>
+        <button id="tab-review" class="nav-item" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Review <span class="nav-badge" id="review-badge" hidden>0</span></span>
+        </button>
+        <button id="tab-model" class="nav-item" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><rect x="7" y="11" width="3" height="8"/><rect x="12" y="7" width="3" height="12"/><rect x="17" y="3" width="3" height="16"/></svg>
+          <span>Model</span>
+        </button>
+        <button id="tab-lab" class="nav-item" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/><path d="M7.5 14h9"/></svg>
+          <span>Lab</span>
+        </button>
+      </nav>
+
+      <div class="side-actions">
+        <button class="side-act" id="btn-home" title="Back to home screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+        </button>
+        <button class="side-act" id="btn-theme" title="Toggle light / dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+        </button>
+        <button class="side-act" id="btn-phone" title="Open on phone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+        </button>
+        <button class="side-act" id="btn-report" title="Daily report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
+        </button>
+        <button class="side-act" id="btn-mute" title="Mute sounds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+        </button>
+      </div>
+
+      <div class="side-foot">
+        <a class="ie-credit" href="https://www.ie.edu" target="_blank" rel="noopener" title="IE University">
+          <img src="assets/ie-logo.svg" alt="IE University">
+          <span>Deep Learning<br>Final Project</span>
+        </a>
+        <div class="status-pill" id="model-status" title="Model status">
+          <span class="dot"></span><span id="status-text">connecting…</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- content -->
+    <main class="content">
       <!-- ===== SCAN ===== -->
       <section id="view-scan" class="view" role="tabpanel">
-        <div class="scan-grid">
-          <div class="stage card">
-            <div class="stage-head">
-              <div class="seg" role="group" aria-label="Scan mode">
-                <button id="mode-single" class="seg-btn is-active">Single item</button>
-                <button id="mode-conveyor" class="seg-btn">Conveyor</button>
-              </div>
-              <div class="stage-tools">
-                <span class="fps" id="fps-badge" hidden><span class="live-dot"></span><span id="fps-val">0</span> ms</span>
-                <select id="camera-select" class="select" title="Camera source"></select>
-              </div>
+        <div class="kpi-strip" id="kpi-strip">
+          <div class="kstat"><span class="card-label">Scanned</span><b class="num" id="k-scanned">0</b></div>
+          <div class="kstat"><span class="card-label">Recovered</span><b class="num gold" id="k-recovered">€0.00</b></div>
+          <div class="kstat"><span class="card-label">Fresh</span><b class="num" id="k-fresh">0</b></div>
+          <div class="kstat"><span class="card-label">Flagged · sell-soon + reject</span><b class="num" id="k-flagged">0</b></div>
+        </div>
+        <div class="stage well" id="video-wrap">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="scanline" id="scanline" hidden></div>
+          <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+          <div class="hud" aria-hidden="true">
+            <span class="hud-rec">REC · LIVE</span>
+            <div class="hud-cross"></div>
+          </div>
+          <div class="video-chrome video-chrome--tl">
+            <select id="camera-select" class="glass-select" title="Camera source"></select>
+          </div>
+          <div class="video-chrome video-chrome--tr">
+            <span class="fps" id="fps-badge" hidden><span class="live-dot"></span><span id="fps-val">0</span> ms</span>
+          </div>
+          <div class="video-chrome video-chrome--bottom">
+            <div class="segmented" id="seg" role="group" aria-label="Scan mode">
+              <span class="seg-thumb" id="seg-thumb" aria-hidden="true"></span>
+              <button id="mode-single" class="seg is-active">Single item</button>
+              <button id="mode-conveyor" class="seg">Conveyor</button>
             </div>
-            <div class="video-wrap" id="video-wrap">
-              <video id="video" autoplay playsinline muted></video>
-              <canvas id="overlay"></canvas>
-              <div class="scanline" id="scanline" hidden></div>
-              <div class="corner tl"></div><div class="corner tr"></div>
-              <div class="corner bl"></div><div class="corner br"></div>
-              <div class="video-empty" id="video-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-                <p>Hold produce to the camera, or upload a photo</p>
-                <div class="empty-actions">
-                  <button id="btn-start" class="btn btn-primary">Start camera</button>
-                  <label class="btn btn-ghost">Upload photo<input id="file-input" type="file" accept="image/*" hidden></label>
-                </div>
-              </div>
-            </div>
-            <div class="stage-foot">
-              <button id="btn-explain" class="btn btn-ghost" disabled>
+            <div class="stage-actions">
+              <button id="btn-explain" class="btn btn--ghost btn--sm" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                Explain · Grad-CAM
+                Explain
               </button>
-              <label class="btn btn-ghost btn-sm">Upload<input id="file-input-2" type="file" accept="image/*" hidden></label>
-              <button id="btn-reset" class="btn btn-ghost btn-sm" hidden>Reset session</button>
+              <button id="btn-reset" class="btn btn--ghost btn--sm" hidden>Reset</button>
+            </div>
+          </div>
+          <div class="video-empty" id="video-empty">
+            <span class="empty-kicker">FreshGuard vision · ready</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            <p>Hold produce to the camera, or upload a photo</p>
+            <div class="empty-actions">
+              <button id="btn-start" class="btn btn--primary">Start camera</button>
+              <label class="btn btn--ghost">Upload photo<input id="file-input" type="file" accept="image/*" hidden></label>
+              <label class="btn btn--ghost">Grade batch<input id="file-batch" type="file" accept="image/*" multiple hidden></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="scan-rail">
+          <div class="card card--hero verdict" id="verdict">
+            <span class="card-label">Verdict</span>
+            <span class="verdict-label" id="verdict-label">Point at produce</span>
+            <span class="verdict-sub" id="verdict-sub">10 produce types · fruit &amp; veg</span>
+          </div>
+
+          <div class="card readout" id="readout-card" hidden>
+            <span class="card-label">Model readout</span>
+            <div class="readout-top" id="readout-top"></div>
+            <div class="readout-meters">
+              <div class="meter"><span class="meter-k">confidence</span><div class="meter-bar"><i id="m-conf"></i></div><b class="num" id="m-conf-v">—</b></div>
+              <div class="meter"><span class="meter-k">certainty · 1−entropy</span><div class="meter-bar"><i id="m-cert"></i></div><b class="num" id="m-cert-v">—</b></div>
+            </div>
+            <div class="readout-foot">
+              <div class="shelf"><span class="card-label">shelf life</span><b class="num" id="m-shelf">—</b></div>
+              <span class="ood-pill" id="m-ood">—</span>
             </div>
           </div>
 
-          <aside class="panel">
-            <div class="verdict card" id="verdict">
-              <span class="verdict-eyebrow">Verdict</span>
-              <span class="verdict-label" id="verdict-label">Point at a produce item</span>
-              <span class="verdict-sub" id="verdict-sub">10 produce types · fruit &amp; veg</span>
+          <div class="card recovered" id="recovered-card" hidden>
+            <span class="card-label">Value recovered</span>
+            <span class="recovered-value" id="recovered-value">€0.00</span>
+            <span class="card-foot" id="recovered-foot">marked down, not binned</span>
+          </div>
+
+          <div class="card counts" id="session-counts" hidden>
+            <span class="card-label">Session</span>
+            <div class="count-grid">
+              <div class="count-cell"><b class="num" id="c-scanned">0</b><span class="card-label">scanned</span></div>
+              <div class="count-cell"><b class="num" id="c-fresh">0</b><span class="card-label">fresh</span></div>
+              <div class="count-cell"><b class="num" id="c-sellsoon">0</b><span class="card-label">sell soon</span></div>
+              <div class="count-cell"><b class="num" id="c-reject">0</b><span class="card-label">reject</span></div>
+              <div class="count-cell"><b class="num" id="c-review">0</b><span class="card-label">review</span></div>
             </div>
+          </div>
 
-            <div class="card metric-card" id="recovered-card" hidden>
-              <span class="metric-eyebrow">Recovered this session</span>
-              <span class="metric-value" id="recovered-value">€0.00</span>
-              <span class="metric-foot" id="recovered-foot">marked down, not binned</span>
+          <div class="card card--interactive outlook" id="outlook-card">
+            <div class="outlook-head">
+              <span class="card-label">7-day outlook · LSTM</span>
+              <span class="outlook-live" id="outlook-live" hidden>● live</span>
             </div>
+            <div class="outlook-main"><b id="ol-total">—</b><span>projected markdowns</span></div>
+            <canvas id="ol-spark" height="48"></canvas>
+            <div class="outlook-action" id="ol-action">—</div>
+          </div>
 
-            <div class="card counts-card" id="session-counts" hidden>
-              <div class="count"><b id="c-scanned">0</b><span>scanned</span></div>
-              <div class="count ok"><b id="c-fresh">0</b><span>fresh</span></div>
-              <div class="count warn"><b id="c-sellsoon">0</b><span>sell soon</span></div>
-              <div class="count bad"><b id="c-reject">0</b><span>reject</span></div>
-              <div class="count review"><b id="c-review">0</b><span>review</span></div>
-            </div>
-
-            <div class="card outlook-card" id="outlook-card">
-              <div class="outlook-head">
-                <span class="metric-eyebrow">7-day outlook · LSTM</span>
-                <span class="outlook-live" id="outlook-live" hidden>● live</span>
-              </div>
-              <div class="outlook-main"><b id="ol-total">—</b><span>projected markdowns</span></div>
-              <canvas id="ol-spark" height="34"></canvas>
-              <div class="outlook-action" id="ol-action">—</div>
-            </div>
-
-            <dl class="card details" id="details"></dl>
-
-            <figure class="card heatmap" id="heatmap-box" hidden>
-              <img id="heatmap-img" alt="Grad-CAM heatmap of model attention">
-              <figcaption>Grad-CAM · where the network looks</figcaption>
-            </figure>
-          </aside>
+          <div class="card recent" id="recent-card">
+            <span class="card-label">Recent grades</span>
+            <ul class="recent-list" id="recent-list"><li class="muted small">No scans yet, start the camera or grade a batch.</li></ul>
+          </div>
         </div>
+
+        <dl class="card well details" id="details"></dl>
+
+        <div class="card how" id="how-card">
+          <span class="card-label">How it works</span>
+          <ol class="how-steps">
+            <li><b>Detect &amp; track</b><span>YOLOv8n finds every item, ByteTrack follows it across frames</span></li>
+            <li><b>Grade</b><span>MobileNetV2 scores each one Fresh / Sell-soon / Reject</span></li>
+            <li><b>Act</b><span>auto markdown + reorder before the margin is lost</span></li>
+          </ol>
+        </div>
+
+        <div class="card replay" id="replay-card" hidden>
+          <div class="replay-head">
+            <span class="card-label">Session replay · <span class="num" id="replay-n">0</span> grades</span>
+            <button class="btn btn--ghost btn--sm" id="replay-clear">Clear</button>
+          </div>
+          <div class="replay-strip" id="replay-strip"></div>
+        </div>
+
+        <figure class="card well heatmap" id="heatmap-box" hidden>
+          <figcaption class="card-label">Grad-CAM · where the network looks</figcaption>
+          <img id="heatmap-img" alt="">
+        </figure>
       </section>
 
       <!-- ===== DASHBOARD ===== -->
       <section id="view-dashboard" class="view" role="tabpanel" hidden>
-        <div class="dash-head">
-          <div>
-            <h2>Spoilage forecast</h2>
-            <p class="muted" id="forecast-note">next 7 days</p>
+        <div class="section-head">
+          <h2>Spoilage forecast</h2>
+          <p class="muted" id="forecast-note">next 7 days · LSTM</p>
+        </div>
+        <div class="card today" id="today-card">
+          <div class="today-head">
+            <span class="card-label">Last 7 days · logged history</span>
+            <a class="btn btn--ghost btn--sm" id="csv-link" href="/api/history.csv" download>Export CSV</a>
           </div>
-          <div class="dash-kpis">
-            <div class="kpi"><b id="kpi-next7">—</b><span>forecast next 7d</span></div>
-            <div class="kpi"><b id="kpi-avg">—</b><span>avg / day</span></div>
+          <div class="today-grid">
+            <div><b id="td-total">0</b><span>graded</span></div>
+            <div><b class="gold" id="td-recovered">€0.00</b><span>recovered</span></div>
+            <div><b id="td-fresh">0</b><span>fresh</span></div>
+            <div><b id="td-flagged">0</b><span>flagged</span></div>
           </div>
         </div>
-        <div class="dash-grid">
-          <div class="card chart-card"><canvas id="forecast-chart" height="120"></canvas></div>
-          <div class="card plan-card">
-            <h3>This week's action plan</h3>
-            <div class="plan-item"><span class="plan-ico ord">↧</span><div><b id="ap-reorder">—</b><small>ordering</small></div></div>
-            <div class="plan-item"><span class="plan-ico mk">!</span><div><b id="ap-markdown">—</b><small>markdown surge</small></div></div>
-            <div class="plan-item"><span class="plan-ico live">●</span><div><b id="ap-live">—</b><small>today · live</small></div></div>
+        <div class="card roi" id="roi-card">
+          <span class="card-label">Margin recovered · ROI</span>
+          <div class="roi-grid">
+            <div><b class="num gold" id="roi-saved">€0.00</b><span>recovered · last 7d</span></div>
+            <div><b class="num" id="roi-lost">€0.00</b><span>still binned</span></div>
+            <div><b class="num" id="roi-rate">—</b><span>recovery rate</span></div>
+            <div><b class="num gold" id="roi-month">€0.00</b><span>projected / month</span></div>
+          </div>
+          <div class="roi-bar"><i id="roi-fill"></i></div>
+        </div>
+        <div class="card chart-card"><canvas id="forecast-chart" height="120"></canvas></div>
+        <div class="kpi-stack">
+          <div class="card card--interactive kpi"><span class="card-label">forecast next 7d</span><b class="num is-value" id="kpi-next7">—</b></div>
+          <div class="card card--interactive kpi"><span class="card-label">avg / day</span><b class="num" id="kpi-avg">—</b></div>
+        </div>
+        <div class="card plan">
+          <div class="plan-item"><span class="card-label">Ordering</span><b class="val" id="ap-reorder">—</b></div>
+          <div class="plan-item"><span class="card-label">Markdown surge</span><b class="val" id="ap-markdown">—</b></div>
+          <div class="plan-item"><span class="card-label">Today · live</span><b class="val" id="ap-live">—</b></div>
+        </div>
+
+        <div class="card produce-board" id="produce-board">
+          <div class="pb-head">
+            <span class="card-label">Per-produce · 7-day flagged forecast &amp; reorder</span>
+            <span class="muted small">LSTM demand · sorted by spoilage risk</span>
+          </div>
+          <div class="pb-list" id="pb-list"><p class="muted small">Loading per-produce forecast…</p></div>
+        </div>
+
+        <div class="card compliance" id="compliance-card">
+          <div class="comp-head">
+            <span class="card-label">Compliance · Spain Law 1/2025</span>
+            <span class="src-pill comp-pill" id="comp-window">last 7 days</span>
+          </div>
+          <div class="comp-grid">
+            <div><b class="num gold" id="comp-diverted">0</b><span>edible items diverted from bin</span></div>
+            <div><b class="num" id="comp-markdown">0</b><span>marked down · sell-soon</span></div>
+            <div><b class="num" id="comp-donate">0</b><span>flagged to donate · reject</span></div>
+            <div><b class="num gold" id="comp-recovered">€0.00</b><span>margin recovered</span></div>
+          </div>
+          <p class="muted small">Law 1/2025 prohibits binning edible produce and requires discounting or donating items nearing expiry. Every sell-soon / reject call is logged here for the mandatory waste-prevention audit, loose produce has no expiry date, so visual condition is the only auditable signal.</p>
+        </div>
+
+        <div class="card impact" id="impact-card">
+          <div class="impact-head"><span class="card-label">Business model · impact at scale</span><span class="muted small">drag to scale the rollout</span></div>
+          <label class="impact-slider">
+            <input type="range" id="stores" min="1" max="500" step="1" value="50">
+            <span class="impact-stores"><b class="num" id="stores-v">50</b> stores</span>
+          </label>
+          <div class="impact-grid">
+            <div><b class="num gold" id="imp-recovered">€0</b><span>margin recovered / yr</span></div>
+            <div><b class="num" id="imp-saas">€0</b><span>SaaS revenue / yr</span></div>
+            <div><b class="num gold" id="imp-roi">6×</b><span>customer ROI</span></div>
+            <div><b class="num" id="imp-payback">~2 mo</b><span>payback</span></div>
+          </div>
+          <p class="muted small">~€100k produce shrink / store / yr. Catch ~30% of decay a day earlier, recover ~60% of price via markdown → <b>~€18k recovered / store / yr</b>. SaaS at €250 / store / mo (€3k/yr) → <b>~6× ROI, ~2-month payback</b>, plus Law 1/2025 compliance value.</p>
+        </div>
+
+        <div class="card wedge" id="wedge-card">
+          <span class="card-label">The wedge · everyone else is blind to the shelf</span>
+          <div class="wedge-table">
+            <div class="wedge-row head"><span>Player</span><span>What they do</span><span>The gap</span></div>
+            <div class="wedge-row"><span>Afresh · Freshflow</span><span>Forecast how much to order</span><span>Blind once produce is on the shelf</span></div>
+            <div class="wedge-row"><span>Wasteless</span><span>Dynamic markdowns by expiry date</span><span>Loose produce has no date to key on</span></div>
+            <div class="wedge-row"><span>Strella · OneThird</span><span>Upstream ripeness via hardware</span><span>Cost / friction; not every aisle</span></div>
+            <div class="wedge-row win"><span>FreshGuard</span><span>Software-only, phone-native, shelf-level condition</span><span>The missing layer, reads what's decaying now</span></div>
           </div>
         </div>
-        <p class="muted small">Items flagged “sell soon” or “reject” by store scans, forecast a week ahead by an LSTM — the flywheel: every scan sharpens the forecast.</p>
+
+        <p class="muted small foot-note">Items flagged “sell soon” or “reject” by store scans, forecast a week ahead by an LSTM, the flywheel: every scan sharpens the forecast.</p>
+      </section>
+
+      <!-- ===== MARKET ===== -->
+      <section id="view-market" class="view" role="tabpanel" hidden>
+        <div class="ticker" id="ticker" aria-hidden="true"><div class="ticker-track" id="ticker-track"></div></div>
+        <div class="market-head">
+          <div class="head-copy">
+            <h2>Live produce market</h2>
+            <p class="muted" id="market-note">Wholesale reference · €/kg · streaming live</p>
+            <div class="mkt-src"><span class="src-pill" id="market-src">reference feed</span><button class="btn btn--ghost btn--sm" id="market-refresh" title="Re-fetch (after adding a USDA key)">Refresh</button></div>
+          </div>
+          <div class="stat"><span class="card-label">avg €/kg</span><b class="num" id="mk-avg">—</b></div>
+          <div class="stat"><span class="card-label">day movers</span><b class="num" id="mk-movers">—</b></div>
+        </div>
+        <div class="card rnn-banner" id="rnn-banner">
+          <div class="rnn-copy">
+            <span class="card-label">Demand forecast · LSTM (RNN)</span>
+            <div class="rnn-row"><b id="rnn-week">—</b><span>items flagged · next 7 days</span></div>
+          </div>
+          <div class="rnn-action" id="rnn-action">—</div>
+        </div>
+        <div class="market-grid" id="market-grid"></div>
+        <p class="muted small foot-note">Reference feed simulating live wholesale prices. FreshGuard ties every grade to its price, <em>sell-soon</em> items are auto-marked-down to clear inside the 48-hour window.</p>
+      </section>
+
+      <!-- ===== REVIEW (active learning) ===== -->
+      <section id="view-review" class="view" role="tabpanel" hidden>
+        <div class="section-head">
+          <h2>Active-learning review</h2>
+          <p class="muted" id="review-note">Low-confidence items the model abstained on, correct them to retrain.</p>
+        </div>
+        <div class="review-grid" id="review-grid"></div>
+        <p class="muted small foot-note">Every correction is logged and folded into the next training run, the data flywheel that makes the model sharper over time.</p>
+      </section>
+
+      <!-- ===== MODEL REPORT ===== -->
+      <section id="view-model" class="view" role="tabpanel" hidden>
+        <div class="section-head">
+          <h2>Model report</h2>
+          <p class="muted">Three architectures, same data, the ablation that earned transfer learning.</p>
+        </div>
+        <div class="model-bars" id="model-bars"></div>
+
+        <div class="net-head-row">
+          <span class="card-label">How each architecture sees the image</span>
+          <span class="muted small">live signal flow · why transfer learning won</span>
+        </div>
+        <div class="net-grid">
+          <div class="card net-card">
+            <div class="net-head"><span class="net-tag">ANN</span><b>fully-connected</b><span class="net-acc">22.2%</span></div>
+            <div class="net-svg" id="net-ann"></div>
+            <p class="net-note">Pixels are <em>flattened</em> and wired to every neuron. Spatial structure is destroyed, it can't tell where decay is, only that the numbers changed.</p>
+          </div>
+          <div class="card net-card">
+            <div class="net-head"><span class="net-tag">CNN</span><b>convolution</b><span class="net-acc">73.3%</span></div>
+            <div class="net-svg" id="net-cnn"></div>
+            <p class="net-note">A <em>kernel slides</em> across the image building feature maps, edges, then texture, then rot. Geometry is preserved, so it learns <em>where</em>.</p>
+          </div>
+          <div class="card net-card">
+            <div class="net-head"><span class="net-tag">RNN</span><b>LSTM · memory</b><span class="net-acc">+42.7%</span></div>
+            <div class="net-svg" id="net-rnn"></div>
+            <p class="net-note">A <em>hidden state</em> carries memory across days of flagged-item history → forecasts next week's spoilage. The grader's data, in time.</p>
+          </div>
+        </div>
+
+        <div class="eval-grid">
+          <div class="card eval-card">
+            <div class="eval-head"><span class="card-label">ROC · fresh vs rotten</span><span class="cm-hint" id="roc-auc">AUC —</span></div>
+            <canvas id="roc-canvas" height="240"></canvas>
+          </div>
+          <div class="card eval-card">
+            <div class="eval-head"><span class="card-label">Calibration · reliability</span><span class="cm-hint">perfect = diagonal</span></div>
+            <canvas id="cal-canvas" height="240"></canvas>
+          </div>
+        </div>
+        <div class="card weak-card" id="weak-card" hidden>
+          <span class="card-label">Hardest class · honest about the weak spot</span>
+          <p class="weak-line" id="weak-line">—</p>
+          <p class="muted small">Smallest, most-confusable class. Instead of hiding it, low-confidence calls abstain to the review queue and feed the next retrain, the active-learning loop.</p>
+        </div>
+
+        <figure class="card cm" id="cm-box">
+          <figcaption class="card-label">Confusion matrix · MobileNetV2 · 20 classes <span class="cm-hint" id="cm-acc">hover a cell</span></figcaption>
+          <div class="cm-wrap"><canvas id="cm-canvas"></canvas><div class="cm-tip" id="cm-tip" hidden></div></div>
+        </figure>
+        <div class="pc-wrap" id="pc-wrap"></div>
+      </section>
+
+      <!-- ===== LAB ===== -->
+      <section id="view-lab" class="view" role="tabpanel" hidden>
+        <div class="section-head">
+          <h2>The lab</h2>
+          <p class="muted">Probe the model, tune its decision thresholds and watch every session call change live.</p>
+        </div>
+
+        <div class="card thresh" id="thresh-card">
+          <div class="thresh-head">
+            <span class="card-label">Decision thresholds</span>
+            <button class="btn btn--ghost btn--sm" id="thresh-reset">Reset defaults</button>
+          </div>
+          <div class="thresh-grid">
+            <label class="slider">
+              <span class="slider-k">Abstain gate · τ <b class="num" id="tau-v">0.70</b></span>
+              <input type="range" id="tau" min="0.30" max="0.95" step="0.01" value="0.70">
+              <span class="slider-h">below this top-class confidence → flag for review</span>
+            </label>
+            <label class="slider">
+              <span class="slider-k">Sell-soon band <b class="num" id="band-lo-v">0.40</b></span>
+              <input type="range" id="band-lo" min="0.10" max="0.60" step="0.01" value="0.40">
+              <span class="slider-h">rot-probability above this → mark down</span>
+            </label>
+            <label class="slider">
+              <span class="slider-k">Reject band <b class="num" id="band-hi-v">0.65</b></span>
+              <input type="range" id="band-hi" min="0.45" max="0.95" step="0.01" value="0.65">
+              <span class="slider-h">rot-probability above this → reject</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card decision" id="decision-card">
+          <div class="decision-head">
+            <span class="card-label">Decision space · <span class="num" id="dec-n">0</span> session scans</span>
+            <div class="dec-legend"><span class="dot fresh"></span>fresh<span class="dot sell"></span>sell-soon<span class="dot reject"></span>reject<span class="dot review"></span>review</div>
+          </div>
+          <div class="dec-plot" id="dec-plot">
+            <span class="dec-band" id="dec-band"></span>
+            <span class="dec-tau" id="dec-tau-line"></span>
+            <div class="dec-dots" id="dec-dots"></div>
+            <span class="dec-ylabel">confidence ▲</span>
+            <span class="dec-xlabel">rot-probability ▶</span>
+          </div>
+          <div class="dec-tally" id="dec-tally"></div>
+          <p class="muted small">Each dot is a session scan, x = rot-probability, y = grade confidence. Drag the sliders to re-grade the whole session instantly. <em id="dec-empty">Scan a few items first.</em></p>
+        </div>
+
+        <div class="card lab-probe" id="compare-card">
+          <div class="lab-head">
+            <span class="card-label">Live model compare · same frame, three architectures</span>
+            <div class="lab-head-actions">
+              <button class="btn btn--ghost btn--sm" id="compare-export" hidden>Export CSV</button>
+              <label class="btn btn--ghost btn--sm">Choose image<input type="file" id="compare-file" accept="image/*" hidden></label>
+            </div>
+          </div>
+          <div class="compare-body" id="compare-body"><p class="muted small">Pick an image, ANN, CNN and MobileNetV2 each grade it live, with timing.</p></div>
+        </div>
+
+        <div class="card lab-probe" id="augment-card">
+          <div class="lab-head">
+            <span class="card-label">Augmentation playground · inference-time robustness</span>
+            <label class="btn btn--ghost btn--sm">Choose image<input type="file" id="augment-file" accept="image/*" hidden></label>
+          </div>
+          <div class="augment-body" id="augment-body"><p class="muted small">Pick an image, watch how gray-world white-balance, TTA and the saliency crop move the prediction.</p></div>
+        </div>
+
+        <div class="card lab-probe" id="embed-card">
+          <div class="lab-head">
+            <span class="card-label">Feature embedding · t-SNE of MobileNetV2</span>
+            <div class="segmented embed-toggle" id="embed-toggle">
+              <button class="seg is-active" data-mode="produce">by produce</button>
+              <button class="seg" data-mode="fresh">fresh vs rotten</button>
+            </div>
+          </div>
+          <canvas id="embed-canvas" height="440"></canvas>
+          <div class="embed-legend" id="embed-legend"></div>
+          <p class="muted small">Each dot is a test image, projected from the model's penultimate layer. Tight, separated clusters mean the network learned a clean representation. <em id="embed-empty">Building projection…</em></p>
+        </div>
+
+        <div class="card lab-probe" id="gradcam-card">
+          <span class="card-label">Grad-CAM gallery · where the network looks</span>
+          <div class="gradcam-grid" id="gradcam-grid"><p class="muted small">Loading…</p></div>
+        </div>
       </section>
     </main>
 
-    <footer class="foot">
-      <span>IE University · Deep Learning Final Project</span>
-      <span class="foot-tag">FreshGuard</span>
-    </footer>
+    <!-- ============ CONTEXT RAIL (live deployment context) ============ -->
+    <aside class="context-rail" id="context-rail">
+      <div class="ctx-store">
+        <div class="ctx-store-top"><span class="ctx-dot live"></span><b>Madrid · Salamanca</b><span class="ctx-env">LIVE</span></div>
+        <span class="ctx-store-sub">Produce hall · Aisle 4 · node MAD-04</span>
+      </div>
+
+      <div class="ctx-section">
+        <span class="card-label">System</span>
+        <div class="ctx-rows">
+          <div class="ctx-row"><span>Classifier</span><span class="ctx-stat ok" id="ctx-model">connecting…</span></div>
+          <div class="ctx-row"><span>Forecast · LSTM</span><span class="ctx-stat ok" id="ctx-forecast">synced</span></div>
+          <div class="ctx-row"><span>Camera</span><span class="ctx-stat" id="ctx-cam">idle</span></div>
+          <div class="ctx-row"><span>Market feed</span><span class="ctx-stat" id="ctx-market">reference</span></div>
+        </div>
+      </div>
+
+      <div class="ctx-section">
+        <span class="card-label">Today</span>
+        <div class="ctx-mini">
+          <div><b class="num" id="ctx-scanned">0</b><span>graded</span></div>
+          <div><b class="num gold" id="ctx-recovered">€0</b><span>recovered</span></div>
+          <div><b class="num" id="ctx-flagged">0</b><span>flagged</span></div>
+        </div>
+      </div>
+
+      <div class="ctx-section ctx-feed-wrap">
+        <span class="card-label">Activity <span class="ctx-livetag">● live</span></span>
+        <ul class="ctx-feed" id="ctx-feed"></ul>
+      </div>
+
+      <div class="ctx-foot">FreshGuard v1.0 · node MAD-04 · <span id="ctx-clock">—</span></div>
+    </aside>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <div class="modal" id="qr-modal" hidden>
+      <div class="modal-box">
+        <button class="modal-x" id="qr-close" aria-label="Close">×</button>
+        <h3 class="modal-title">Open on your phone</h3>
+        <div id="qr-canvas" class="qr-canvas"></div>
+        <p class="muted small" id="qr-url">…</p>
+        <p class="muted small">Scan with your phone's camera to open the live app.</p>
+      </div>
+    </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=29"></script>
+  <script defer src="fx.js?v=11"></script>
+  <script defer src="anime-fx.js?v=1"></script>
+  <script defer src="vision-engine.js?v=1"></script>
+  <script defer src="story-engine.js?v=5"></script>
+  <script defer src="net-anim.js?v=2"></script>
 </body>
 </html>

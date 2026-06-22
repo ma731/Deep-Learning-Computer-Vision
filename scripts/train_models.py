@@ -58,6 +58,10 @@ VAL_SPLIT = 0.15
 def make_generators(img_size: int, preprocessing=None, rescale=None,
                     augment=True):
     """Train/val generators (split from train dir) + untouched test gen."""
+    # known-good augmentation (CNN 73% / MobileNetV2 95.6%). NOTE: a much more
+    # aggressive variant (channel_shift 40 + shear + wide brightness) was tried
+    # and HURT clean accuracy (CNN collapsed to ~29%); real-world robustness is
+    # handled at inference instead (TTA + saliency crop in backend/pipeline.py).
     aug = dict(rotation_range=30, width_shift_range=0.15,
                height_shift_range=0.15, zoom_range=0.2,
                horizontal_flip=True, brightness_range=(0.6, 1.4)) if augment else {}
