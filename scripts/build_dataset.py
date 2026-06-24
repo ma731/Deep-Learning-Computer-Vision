@@ -10,14 +10,13 @@ Class names follow the backend contract: rotten classes start with 'rotten',
 and each name contains the COCO fruit/veg word (for the detector-agreement check).
 """
 
+import argparse
 import shutil
 from pathlib import Path
 
 import kagglehub
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "data" / "dataset"
-SAMPLE = ROOT / "data" / "sample_images"
 SEED = 42
 TEST_FRAC = 0.15
 N_SAMPLE = 4  # images per class copied into the repo as a visible sample
@@ -52,15 +51,24 @@ MAPPING = {
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, default=ROOT / "data" / "dataset",
+                        help="Where to write train/test splits (default: data/dataset/)")
+    args = parser.parse_args()
+    out = args.output
+    # Sample images go beside the dataset output so all writes land in the same place.
+    # On Colab this keeps everything on the local VM and away from Drive I/O quota.
+    sample = out.parent / "sample_images"
+
     src_root = Path(kagglehub.dataset_download(
         "muhammad0subhan/fruit-and-vegetable-disease-healthy-vs-rotten"))
     base = next(p for p in src_root.rglob("*Dataset*") if p.is_dir())
     print("source:", base)
 
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    if SAMPLE.exists():
-        shutil.rmtree(SAMPLE)   # keep the committed sample set clean on rebuild
+    if out.exists():
+        shutil.rmtree(out)
+    if sample.exists():
+        shutil.rmtree(sample)   # keep the committed sample set clean on rebuild
     summary = {}
     for cls, folder in MAPPING.items():
         imgs = sorted((base / folder).glob("*"))
@@ -70,12 +78,12 @@ def main():
         n_test = int(len(imgs) * TEST_FRAC)
         splits = {"test": imgs[:n_test], "train": imgs[n_test:]}
         for split, files in splits.items():
-            dst = OUT / split / cls
+            dst = out / split / cls
             dst.mkdir(parents=True, exist_ok=True)
             for p in files:
                 shutil.copy2(p, dst / p.name)
         # copy a few into the repo-visible sample folder
-        sdst = SAMPLE / cls
+        sdst = sample / cls
         sdst.mkdir(parents=True, exist_ok=True)
         for p in splits["train"][:N_SAMPLE]:
             shutil.copy2(p, sdst / p.name)
@@ -85,8 +93,8 @@ def main():
     total_tr = sum(v["train"] for v in summary.values())
     total_te = sum(v["test"] for v in summary.values())
     print(f"\nTotal: {total_tr} train / {total_te} test across {len(MAPPING)} classes")
-    print("Output:", OUT)
-    print("Sample images for repo:", SAMPLE)
+    print("Output:", out)
+    print("Sample images for repo:", sample)
 
 
 if __name__ == "__main__":
