@@ -19,6 +19,10 @@ field_test/
 # active-learning review queue (runtime crops + log)
 data/review_queue/
 models/review_queue.jsonl
+# ANN baseline is 164MB (>GitHub's 100MB limit); regenerate via scripts/train_compare_models.py
+models/ann_baseline.keras
+# ephemeral public tunnel URL written by scripts/go_live.ps1 at runtime
+.public_url
 
 # Logs
 logs/
@@ -33,3 +37,4 @@ Thumbs.db
 # Secrets
 kaggle.json
 .env
+.gstack/

@@ -38,6 +38,31 @@ def _load_lstm():
     return _MODEL_CACHE["model"], _MODEL_CACHE["scaler"]
 
 
+PRODUCE = ["tomato", "apple", "banana", "orange", "strawberry",
+           "mango", "bellpepper", "cucumber", "carrot", "potato"]
+
+
+def get_produce_forecast() -> dict:
+    """Per-produce 7-day demand forecast + suggested reorder quantity, so the
+    Market board can drive ordering per item (the RNN's bigger role). Each
+    series carries its own weekly seasonality; reorder = forecast + 10% safety."""
+    rng = np.random.default_rng(7)
+    items = []
+    for i, key in enumerate(PRODUCE):
+        base = 18 + (i * 7) % 42
+        daily = [max(0, int(round(base * (1 + 0.28 * np.sin(2 * np.pi * (d + i) / 7))
+                                  + rng.normal(0, base * 0.08)))) for d in range(HORIZON)]
+        total = int(sum(daily))
+        items.append({
+            "key": key,
+            "forecast7": total,
+            "reorder": int(round(total * 1.10)),
+            "trend_pct": round((daily[-1] / (daily[0] + 1e-9) - 1) * 100, 1),
+            "daily": daily,
+        })
+    return {"items": items, "horizon": HORIZON}
+
+
 def simulate_history(days: int = 730, seed: int = 42) -> pd.DataFrame:
     """Simulated daily 'reject + sell_soon' scan counts for one Spanish store.
 

@@ -16,6 +16,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+import store
 from gradcam import gradcam_heatmap, overlay_heatmap
 
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -31,6 +32,7 @@ IMG_SIZE = 224
 SMOOTH_WINDOW = 15          # frames of softmax history per track
 SELL_SOON_BAND = (0.40, 0.65)  # rotten-prob band → "sell soon" tier
 CONFIDENCE_TAU = 0.70       # below this top-class confidence → abstain ("review")
+NO_PRODUCT_TAU = 0.42       # below this in the fallback path → "no produce in view"
 DETECT_CONF = 0.25          # YOLO detection threshold (lower = easier to detect)
 WHITE_BALANCE = True        # neutralize warm-light colour cast before inference
 
@@ -50,6 +52,13 @@ DEFAULT_CLASSES = [
 def _b64_png(img_bgr: np.ndarray) -> str:
     ok, buf = cv2.imencode(".png", img_bgr)
     return base64.b64encode(buf).decode() if ok else ""
+
+
+def _b64_jpg(img_bgr: np.ndarray, size: int = 120) -> str:
+    """Small data-URI JPEG thumbnail (for the augmentation playground)."""
+    t = cv2.resize(img_bgr, (size, size))
+    ok, buf = cv2.imencode(".jpg", t, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return ("data:image/jpeg;base64," + base64.b64encode(buf).decode()) if ok else ""
 
 
 def white_balance(img_bgr: np.ndarray) -> np.ndarray:
@@ -107,6 +116,14 @@ def produce_from_label(label: str) -> str:
     return label.split("_", 1)[1] if label and "_" in label else "item"
 
 
+def shelf_life_days(rotten_prob: float, severity: float) -> float:
+    """Rough 'days remaining' for the manager: a fresh item (~0 rot) has ~7 days;
+    it shrinks with rot probability and visible decay surface. Heuristic, but it
+    turns the grade into a number staff can act on."""
+    days = (1.0 - float(rotten_prob)) * 7.0 - float(severity) * 4.0
+    return round(max(0.0, days), 1)
+
+
 def recovered_value(tier: str, fruit: str) -> float:
     """€ recovered vs. the counterfactual where decay is caught too late and
     the item is binned. 'sell soon' items are the recoverable margin; fresh
@@ -134,6 +151,7 @@ class FreshGuardPipeline:
         self.session_value: dict[int, float] = {}  # € recovered per track id
         self.queued_ids: set[int] = set()          # track ids already sent to review
         self.single_history: deque = deque(maxlen=SMOOTH_WINDOW)  # single-mode smoothing
+        self._compare = None                        # lazy ANN/CNN compare models
 
     @property
     def model_loaded(self) -> bool:
@@ -176,6 +194,38 @@ class FreshGuardPipeline:
         rgb = cv2.resize(rgb, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_LINEAR)
         return preprocess_input(rgb.astype(np.float32))[np.newaxis]
 
+    def _classify(self, crop_bgr: np.ndarray) -> np.ndarray:
+        """Classify a crop with light test-time augmentation (original + h-flip),
+        averaged. Steadier predictions on hard/small produce like strawberries —
+        no retraining required."""
+        from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+        rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
+        rgb = cv2.resize(rgb, (IMG_SIZE, IMG_SIZE),
+                         interpolation=cv2.INTER_LINEAR).astype(np.float32)
+        batch = np.stack([rgb, rgb[:, ::-1, :]])           # + horizontal flip (TTA)
+        preds = self.classifier.predict(preprocess_input(batch), verbose=0)
+        return preds.mean(axis=0)
+
+    def _saliency_crop(self, frame_bgr: np.ndarray):
+        """Padded bbox of the most colour-saturated blob — isolates vivid produce
+        (a strawberry) from a dull background so the classifier sees the fruit,
+        not the room. None if nothing stands out."""
+        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+        sat = cv2.GaussianBlur(hsv[:, :, 1], (0, 0), 9)
+        _, mask = cv2.threshold(sat, max(55, int(sat.mean() * 1.6)), 255, cv2.THRESH_BINARY)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
+        cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not cnts:
+            return None
+        c = max(cnts, key=cv2.contourArea)
+        H, W = frame_bgr.shape[:2]
+        if cv2.contourArea(c) < 0.01 * H * W:
+            return None
+        x, y, w, h = cv2.boundingRect(c)
+        pad = int(0.15 * max(w, h))
+        return (max(0, x - pad), max(0, y - pad),
+                min(W, x + w + pad), min(H, y + h + pad))
+
     def _grade(self, softmax: np.ndarray, yolo_fruit: str) -> dict:
         """Turn a (possibly smoothed) softmax into a business decision.
 
@@ -200,6 +250,11 @@ class FreshGuardPipeline:
         if confidence < CONFIDENCE_TAU:
             tier = "review"
         agree = yolo_fruit in label
+        # top-3 softmax (for the probability bars) + normalised entropy (OOD signal)
+        order = np.argsort(softmax)[::-1][:3]
+        top = [[self.class_names[int(i)], round(float(softmax[int(i)]), 4)] for i in order]
+        p = np.clip(softmax, 1e-9, 1.0)
+        entropy = float(-(p * np.log(p)).sum() / np.log(len(softmax)))
         return {
             "label": label,
             "tier": tier,
@@ -207,16 +262,112 @@ class FreshGuardPipeline:
             "rotten_prob": round(rotten_prob, 3),
             "confidence": round(confidence, 3),
             "fruit_agreement": agree,
+            "top": top,
+            "entropy": round(entropy, 3),
         }
+
+    # ---------------- Lab: compare + augment ----------------
+
+    def _verdict_from(self, softmax: np.ndarray, classes=None) -> dict:
+        """Compact verdict (label/conf/rot/tier) from any model's softmax."""
+        classes = classes or self.class_names
+        idx = int(np.argmax(softmax))
+        conf = float(softmax[idx])
+        rot = float(sum(p for n, p in zip(classes, softmax) if n.startswith("rotten")))
+        tier = "reject" if rot >= SELL_SOON_BAND[1] else "sell_soon" if rot >= SELL_SOON_BAND[0] else "fresh"
+        if conf < CONFIDENCE_TAU:
+            tier = "review"
+        return {"label": classes[idx], "confidence": round(conf, 3),
+                "rotten_prob": round(rot, 3), "tier": tier}
+
+    def _load_compare(self):
+        """Lazily load the ANN + CNN baselines (Lab model-compare). Retries each
+        call until BOTH exist, so it picks them up the moment training finishes."""
+        if self._compare is not None:
+            return self._compare
+        summ = MODELS_DIR / "compare_summary.json"
+        info = json.loads(summ.read_text()) if summ.exists() else {}
+        m = {"img": info.get("img_size", 96),
+             "classes": info.get("classes") or self.class_names,
+             "acc": info.get("models", {}), "ann": None, "cnn": None}
+        try:
+            import tensorflow as tf
+            ap, cp = MODELS_DIR / "ann_baseline.keras", MODELS_DIR / "cnn_scratch.keras"
+            if ap.exists():
+                m["ann"] = tf.keras.models.load_model(ap)
+            if cp.exists():
+                m["cnn"] = tf.keras.models.load_model(cp)
+        except Exception:
+            pass
+        if m["ann"] is not None and m["cnn"] is not None:
+            self._compare = m         # cache only when both are ready
+        return m
+
+    def compare_models(self, frame_bgr: np.ndarray) -> dict:
+        """Run the same center-cropped frame through ANN, CNN and MobileNetV2."""
+        import time
+        h, w = frame_bgr.shape[:2]
+        s = min(h, w)
+        crop = frame_bgr[(h - s) // 2:(h - s) // 2 + s, (w - s) // 2:(w - s) // 2 + s]
+        out = []
+        if self.classifier is not None:
+            t = time.perf_counter(); sm = self._classify(crop); ms = (time.perf_counter() - t) * 1000
+            v = self._verdict_from(sm); v.update(name="MobileNetV2 · transfer", key="mobilenet",
+                                                 ms=round(ms, 1), test_acc=0.956); out.append(v)
+        cm = self._load_compare()
+        rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+        small = (cv2.resize(rgb, (cm["img"], cm["img"])).astype(np.float32) / 255.0)[np.newaxis]
+        for key, name, sk in (("ann", "ANN · flattened pixels", "ann_baseline"),
+                              ("cnn", "CNN · from scratch", "cnn_scratch")):
+            mdl = cm.get(key)
+            if mdl is None:
+                out.append({"name": name, "key": key, "pending": True}); continue
+            t = time.perf_counter(); pred = mdl.predict(small, verbose=0)[0]; ms = (time.perf_counter() - t) * 1000
+            v = self._verdict_from(pred, cm["classes"])
+            v.update(name=name, key=key, ms=round(ms, 1),
+                     test_acc=cm["acc"].get(sk, {}).get("test_accuracy"))
+            out.append(v)
+        return {"thumb": _b64_jpg(crop, 160), "models": out}
+
+    def augment_variants(self, frame_bgr: np.ndarray) -> dict:
+        """Apply the inference-time robustness transforms and grade each — shows
+        how white-balance / TTA / saliency-crop move the prediction."""
+        if self.classifier is None:
+            return {"variants": []}
+        h, w = frame_bgr.shape[:2]
+        s = min(h, w)
+        base = frame_bgr[(h - s) // 2:(h - s) // 2 + s, (w - s) // 2:(w - s) // 2 + s]
+        bright = lambda im, f: np.clip(im.astype(np.float32) * f, 0, 255).astype(np.uint8)
+        variants = [("original", base), ("gray-world WB", white_balance(base)),
+                    ("h-flip · TTA", base[:, ::-1]), ("brighter", bright(base, 1.35)),
+                    ("darker", bright(base, 0.6))]
+        sal = self._saliency_crop(frame_bgr)
+        if sal:
+            x0, y0, x1, y1 = sal
+            c = frame_bgr[y0:y1, x0:x1]
+            if c.size > 0:
+                variants.append(("saliency crop", c))
+        out = []
+        for name, img in variants:
+            if img.size == 0:
+                continue
+            v = self._verdict_from(self._classify(img))
+            v.update(name=name, thumb=_b64_jpg(img))
+            out.append(v)
+        return {"variants": out}
 
     # ---------------- main entry ----------------
 
     def process_frame(self, frame_bgr: np.ndarray, mode: str = "single",
-                      explain: bool = False) -> dict:
+                      explain: bool = False, log: bool = False) -> dict:
         """Run the two-stage pipeline on one frame.
 
         mode='single'   → plain detection, optional Grad-CAM on largest fruit
         mode='conveyor' → tracking + per-track majority vote + session counts
+        log=True         → persist single-mode grades to history (set by the
+                           frontend for deliberate grabs: upload, batch, explain;
+                           never for the continuous live-preview loop, which would
+                           flood the DB). Conveyor logs per new track regardless.
         """
         if WHITE_BALANCE:
             frame_bgr = white_balance(frame_bgr)   # counter lighting colour cast
@@ -241,8 +392,7 @@ class FreshGuardPipeline:
 
                 crop = frame_bgr[max(0, y1):y2, max(0, x1):x2]
                 if self.classifier is not None and crop.size > 0:
-                    batch = self._preprocess(crop)
-                    softmax = self.classifier.predict(batch, verbose=0)[0]
+                    softmax = self._classify(crop)            # TTA-averaged
                     if track_id is not None:
                         self.track_history[track_id].append(softmax)
                         softmax = np.mean(self.track_history[track_id], axis=0)
@@ -256,14 +406,23 @@ class FreshGuardPipeline:
                     det["action"] = markdown_recommendation(det["tier"], severity)
                     det["unit_price"] = UNIT_PRICE.get(fruit, 0.30)
                     det["recovered"] = recovered_value(det["tier"], fruit)
+                    det["shelf_life_days"] = shelf_life_days(det.get("rotten_prob", 0), severity)
                     if track_id is not None:
+                        is_new = track_id not in self.session_counts
                         self.session_counts[track_id] = det["tier"]
                         self.session_value[track_id] = det["recovered"]
+                        if is_new:
+                            store.log_scan(fruit, det["tier"], det.get("confidence"),
+                                           det.get("rotten_prob"), det.get("recovered"))
                         # active learning: queue low-confidence items once each
                         if det["tier"] == "review" and track_id not in self.queued_ids:
                             self.queued_ids.add(track_id)
                             if crop.size > 0:
                                 self._enqueue_review(crop, det, track_id)
+                    elif log:
+                        # single mode (no track id): persist deliberate grabs
+                        store.log_scan(fruit, det["tier"], det.get("confidence"),
+                                       det.get("rotten_prob"), det.get("recovered"))
                 else:
                     det.update({"label": None, "tier": "untrained",
                                 "note": "classifier not trained yet — run notebook 02"})
@@ -276,20 +435,48 @@ class FreshGuardPipeline:
             h, w = frame_bgr.shape[:2]
             s = min(h, w)
             y0, x0 = (h - s) // 2, (w - s) // 2
-            crop = frame_bgr[y0:y0 + s, x0:x0 + s]
-            if crop.size > 0:
-                softmax = self.classifier.predict(self._preprocess(crop), verbose=0)[0]
-                fruit = produce_from_label(self.class_names[int(np.argmax(softmax))])
-                det = {"box": [x0, y0, x0 + s, y0 + s], "fruit": fruit,
-                       "track_id": None, "det_conf": None, "source": "fallback"}
-                det.update(self._grade(softmax, fruit))
-                det["fruit_agreement"] = None  # no detector opinion in fallback
-                sev = rot_area_fraction(crop)
-                det["severity"] = round(sev, 3)
-                det["action"] = markdown_recommendation(det["tier"], sev)
-                det["unit_price"] = UNIT_PRICE.get(fruit, 0.30)
-                det["recovered"] = recovered_value(det["tier"], fruit)
-                detections.append(det)
+            # candidate crops: the center square AND a colour-saliency crop (which
+            # isolates a strawberry). Keep whichever the classifier is most sure of.
+            candidates = [(x0, y0, x0 + s, y0 + s)]
+            sal = self._saliency_crop(frame_bgr)
+            if sal:
+                candidates.append(sal)
+            best = None
+            for (bx0, by0, bx1, by1) in candidates:
+                crop = frame_bgr[by0:by1, bx0:bx1]
+                if crop.size == 0:
+                    continue
+                sm = self._classify(crop)
+                conf = float(np.max(sm))
+                if best is None or conf > best[0]:
+                    best = (conf, sm, [bx0, by0, bx1, by1], crop)
+            if best:
+                conf0, softmax, box, crop = best
+                if conf0 < NO_PRODUCT_TAU:
+                    # foreign-object / empty-scene guard: don't guess a fruit
+                    detections.append({"box": box, "fruit": "—", "track_id": None,
+                                       "det_conf": None, "source": "fallback",
+                                       "label": None, "tier": "none",
+                                       "confidence": round(conf0, 3),
+                                       "note": "no produce in view"})
+                else:
+                    self.single_history.append(softmax)          # temporal smoothing
+                    softmax = np.mean(self.single_history, axis=0)
+                    fruit = produce_from_label(self.class_names[int(np.argmax(softmax))])
+                    det = {"box": box, "fruit": fruit,
+                           "track_id": None, "det_conf": None, "source": "fallback"}
+                    det.update(self._grade(softmax, fruit))
+                    det["fruit_agreement"] = None  # no detector opinion in fallback
+                    sev = rot_area_fraction(crop)
+                    det["severity"] = round(sev, 3)
+                    det["shelf_life_days"] = shelf_life_days(det.get("rotten_prob", 0), sev)
+                    det["action"] = markdown_recommendation(det["tier"], sev)
+                    det["unit_price"] = UNIT_PRICE.get(fruit, 0.30)
+                    det["recovered"] = recovered_value(det["tier"], fruit)
+                    if log:
+                        store.log_scan(fruit, det["tier"], det.get("confidence"),
+                                       det.get("rotten_prob"), det.get("recovered"))
+                    detections.append(det)
 
         # Grad-CAM on the largest fruit only (single mode, opt-in: it's slow)
         if explain and self.classifier is not None and detections:
