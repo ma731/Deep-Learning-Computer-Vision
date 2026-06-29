@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreshGuard: IE University Deep Learning Final Project</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/white.min.css" id="theme">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@300;400;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── Palette: FreshGuard Green ────────────────────────────────────
+       Derived from fresh produce. Pure white background for maximum
+       projection clarity; a single fresh-leaf green as the only accent.
+       Everything else is disciplined restraint.
+    ─────────────────────────────────────────────────────────────────── */
+    :root {
+      --ink:        #1C2B1E;   /* near-black with green undertone */
+      --paper:      #FFFFFF;   /* pure white */
+      --accent:     #34A85A;   /* fresh-leaf green */
+      --accent-mid: #1D7A3C;   /* deeper green for numerals */
+      --accent-bg:  #EAF7EE;   /* very light green wash */
+      --muted:      #718A78;   /* sage for secondary text */
+      --rule:       #D4EDD9;   /* soft green rule / table borders */
+
+      --r-background-color: var(--paper);
+      --r-main-color:       var(--ink);
+      --r-heading-color:    var(--ink);
+      --r-link-color:       var(--accent);
+      --r-link-color-hover: var(--accent-mid);
+      --r-main-font:        "Inter", system-ui, sans-serif;
+      --r-heading-font:     "Spectral", Georgia, serif;
+      --r-code-font:        "JetBrains Mono", monospace;
+      --r-main-font-size:   28px;
+      --r-heading-text-transform: none;
+      --r-heading-font-weight:    600;
+    }
+
+    /* ─── Type scale ────────────────────────────────────────────────── */
+    .reveal h1, .reveal h2, .reveal h3 { letter-spacing: -0.015em; line-height: 1.1; }
+    .reveal h1 { font-size: 2.5em; font-weight: 600; }
+    .reveal h2 { font-size: 1.6em; }
+    .reveal h3 { font-size: 1.2em; }
+    .reveal p, .reveal li { line-height: 1.45; }
+
+    /* ─── Utility classes ───────────────────────────────────────────── */
+    .muted  { color: var(--muted); }
+    .accent { color: var(--accent); }
+
+    /* Section eyebrow: small uppercase tag naming the section */
+    .eyebrow {
+      font-family: var(--r-main-font);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.4em;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.4em;
+    }
+
+    /* Thesis callout: left-rule treatment, the deck's signature motif */
+    .thesis {
+      border-left: 3px solid var(--accent);
+      padding-left: 0.7em;
+      text-align: left;
+      font-family: var(--r-heading-font);
+      font-size: 1.35em;
+      line-height: 1.3;
+      color: var(--ink);
+    }
+
+    /* Caption under a figure: one takeaway line, not a description */
+    .caption      { color: var(--muted); font-size: 0.5em;  margin-top: 0.6em; text-align: center; }
+    .caption-left { color: var(--muted); font-size: 0.52em; margin-top: 0.4em; }
+
+    /* ─── Section dividers ──────────────────────────────────────────── */
+    .divider       { text-align: left; }
+    .divider .num  { font-family: var(--r-heading-font); font-size: 4em; color: var(--accent); line-height: 1; margin: 0; }
+    .divider h2    { margin-top: 0.1em; font-size: 1.8em; }
+    .divider .rule { width: 60px; height: 3px; background: var(--accent); margin: 0.45em 0 0.7em; }
+
+    /* ─── Layout helpers ────────────────────────────────────────────── */
+    .cols   { display: grid; grid-template-columns: 1fr 1fr;       gap: 1.4em; align-items: start; text-align: left; }
+    .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr;   gap: 1em;   align-items: start; text-align: center; }
+
+    /* ─── Data callouts ─────────────────────────────────────────────── */
+    .stat .value {
+      font-family: var(--r-heading-font);
+      font-size: 3.6em;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat .label {
+      color: var(--muted);
+      font-size: 0.55em;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 0.3em;
+    }
+    .stat-sm .value {
+      font-family: var(--r-heading-font);
+      font-size: 2.5em;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-sm .label {
+      color: var(--muted);
+      font-size: 0.48em;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.25em;
+    }
+
+    /* ─── Ablation bar chart (drawn in CSS for legibility) ──────────── */
+    .ablation-row   { margin: 0.55em 0; }
+    .ablation-model { font-size: 0.52em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2em; }
+    .ablation-wrap  { display: flex; align-items: center; gap: 0.7em; }
+    .ablation-bar   { height: 34px; border-radius: 4px; }
+    .ablation-pct   { font-family: var(--r-heading-font); font-size: 1.05em; font-weight: 600; color: var(--ink); min-width: 2.4em; }
+    .bar-ann        { background: #C8E6CF; width: 33%; }
+    .bar-cnn        { background: #80C99A; width: 78%; }
+    .bar-mv2        { background: var(--accent); width: 99.5%; }
+
+    /* ─── Data table ────────────────────────────────────────────────── */
+    .reveal table { font-size: 0.68em; margin: 0 auto; border-collapse: collapse; width: 100%; }
+    .reveal table th {
+      padding: 0.4em 0.9em;
+      border-bottom: 2px solid var(--accent);
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 0.82em;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      text-align: left;
+    }
+    .reveal table td        { padding: 0.4em 0.9em; border-bottom: 1px solid var(--rule); }
+    .reveal table td.num    { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--r-code-font); font-size: 0.9em; }
+    .reveal table tr.hi td  { background: var(--accent-bg); font-weight: 600; }
+    .reveal table tr.hi .num { color: var(--accent-mid); }
+
+    /* ─── Inline callout blocks ─────────────────────────────────────── */
+    .callout-warn {
+      border-left: 3px solid #E07B39;
+      background: #FDF4EE;
+      padding: 0.5em 0.8em;
+      text-align: left;
+      font-size: 0.75em;
+      border-radius: 0 4px 4px 0;
+    }
+    .callout-win {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-bg);
+      padding: 0.5em 0.8em;
+      text-align: left;
+      font-size: 0.75em;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* ─── Inline label tag ──────────────────────────────────────────── */
+    .tag {
+      display: inline-block;
+      background: var(--accent-bg);
+      color: var(--accent-mid);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      padding: 0.1em 0.6em;
+      font-size: 0.5em;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Pipeline diagram ──────────────────────────────────────────── */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+    .pipe-node {
+      background: var(--accent-bg);
+      border: 1.5px solid var(--rule);
+      border-radius: 6px;
+      padding: 0.45em 0.65em;
+      font-size: 0.42em;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .pipe-node strong { color: var(--accent-mid); display: block; font-size: 1.1em; margin-bottom: 0.1em; }
+    .pipe-arrow { color: var(--accent); font-size: 0.55em; padding: 0 0.3em; align-self: center; }
+
+    /* ─── Figure placeholder ────────────────────────────────────────── */
+    .figure-slot {
+      border: 2px dashed #C9C9C0;
+      border-radius: 6px;
+      padding: 2em;
+      color: var(--muted);
+      font-size: 0.65em;
+      text-align: center;
+    }
+
+    /* ─── Title strip (signature) ───────────────────────────────────── */
+    .title-strip {
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-mid));
+      margin: 1.6em auto 0;
+    }
+
+    /* ─── Misc ──────────────────────────────────────────────────────── */
+    .reveal pre          { box-shadow: none; width: 100%; font-size: 0.48em; }
+    .reveal .slide-number { color: var(--muted); font-size: 0.8em; }
+    .reveal img          { max-width: 100%; border-radius: 4px; }
+
+    /* Dark demo slide overrides via data-background-color attribute */
+    .demo-headline { font-family: "Spectral", Georgia, serif; font-size: 3em; color: #34A85A; line-height: 1; margin: 0; }
+    .demo-sub      { font-size: 0.72em; color: #A8C5B0; margin-top: 0.9em; }
+
+    /* ─── Smooth fragment entrance ─────────────────────────────────── */
+    .reveal .fragment {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      visibility: visible !important;
+    }
+    .reveal .fragment.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ══ 1 · TITLE ═══════════════════════════════════════════ MARCO ══ -->
+      <section>
+        <p class="eyebrow">IE University &middot; Deep Learning &middot; Final Project</p>
+        <h1>FreshGuard</h1>
+        <p class="muted" style="font-size:0.85em; margin-top:0.15em;">
+          AI produce quality control for the supermarket floor
+        </p>
+        <span class="title-strip"></span>
+        <p class="muted" style="font-size:0.48em; margin-top:1.5em;">
+          Sebastião Clemente &nbsp;&middot;&nbsp; Bassem El Halawani &nbsp;&middot;&nbsp;
+          Marco Ortiz Togashi &nbsp;&middot;&nbsp; Jorge Vildoso &nbsp;&middot;&nbsp; Yaxin Wu
+        </p>
+        <aside class="notes">
+          SPEAKER: Marco.
+          Welcome everyone. FreshGuard is a two-model deep learning MVP we built for supermarket produce quality control.
+          In the next seven minutes we will take you through the business problem, the data, both models, and the integrated system.
+          Then we will give you a live demo.
+        </aside>
+      </section>
+
+      <!-- ══ 2 · THE BUSINESS PROBLEM ════════════════════════════ MARCO ══ -->
+      <section>
+        <p class="eyebrow">The Problem</p>
+        <div class="cols" style="align-items:center; gap:2em;">
+          <div class="stat">
+            <div class="value">4–6%</div>
+            <div class="label">of produce revenue lost to shrink each year</div>
+          </div>
+          <div style="text-align:left;">
+            <p style="font-size:0.72em;">
+              Decay is caught too late by subjective manual checks. By the time staff flag a tray as rotten, the markdown window has closed.
+            </p>
+            <p style="font-size:0.72em; margin-top:0.55em;">
+              Spain's <strong>Law 1/2025</strong> now requires retailers to discount or donate loose produce approaching expiry.
+              But loose produce carries no printed expiry date.
+            </p>
+            <p style="font-size:0.72em; margin-top:0.55em; color:var(--accent-mid);">
+              <strong>Visual condition is the only actionable signal.</strong>
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          SPEAKER: Marco.
+          Supermarkets lose four to six percent of produce revenue every year because staff catch decay too late.
+          Law 1/2025 makes this harder: retailers must now mark down or donate near-expiry loose produce.
+          But a carrot or a mango has no printed expiry date. The only way to know it is going bad is to look at it.
+          That is exactly the job we give our CNN.
+        </aside>
+      </section>
+
+      <!-- ══ 3 · OUR APPROACH ═════════════════════════════════════ MARCO ══ -->
+      <section>
+        <p class="eyebrow">The Solution</p>
+        <h2>One system, two models</h2>
+        <div class="cols" style="margin-top:0.6em;">
+          <div>
+            <p class="tag">Scanner</p>
+            <p style="font-size:0.72em; margin-top:0.55em;">
+              <strong>CNN classifier</strong> grades each item as fresh, sell-soon, or reject
+              the moment it passes in front of the camera.
+            </p>
+            <p class="caption-left">Floor staff act on the grade in real time.</p>
+          </div>
+          <div>
+            <p class="tag">Dashboard</p>
+            <p style="font-size:0.72em; margin-top:0.55em;">
+              <strong>LSTM forecaster</strong> predicts daily spoilage counts 7 days ahead
+              so managers can plan orders and staffing before the surge hits.
+            </p>
+            <p class="caption-left">Today's scans become next week's decisions.</p>
+          </div>
+        </div>
+        <p class="thesis" style="font-size:0.9em; margin-top:0.9em;">
+          Catch decay a day earlier, mark down instead of bin, and recover the margin.
+        </p>
+        <aside class="notes">
+          SPEAKER: Marco.
+          The system has two layers. The CNN runs in real time on the scanner camera and grades each piece of produce.
+          The LSTM on the manager dashboard reads those daily counts and forecasts the next seven days of spoilage.
+          One sentence summarises both: catch decay a day earlier, mark down instead of bin, and recover the margin.
+        </aside>
+      </section>
+
+      <!-- ══ DIVIDER 01: THE DATA ══════════════════════════════════ SEBASTIÃO CLEMENTE ══ -->
+      <section class="divider">
+        <p class="num">01</p>
+        <div class="rule"></div>
+        <h2>The Data</h2>
+        <aside class="notes">SPEAKER: Sebastião. Hand-off from Marco.</aside>
+      </section>
+
+      <!-- ══ 4 · DATA STORY ═══════════════════════════════════════ SEBASTIÃO CLEMENTE ══ -->
+      <section>
+        <p class="eyebrow">Data</p>
+        <h2>Two datasets, two models</h2>
+        <div class="cols" style="margin-top:0.5em;">
+          <div>
+            <p class="tag">Images &nbsp; CNN</p>
+            <p style="font-size:0.67em; margin-top:0.55em;">
+              <strong>27,700 images</strong> across 20 classes: fresh and rotten for 10 produce types.
+            </p>
+            <p style="font-size:0.67em; margin-top:0.35em;">
+              Kaggle "Fruit and Vegetable Disease" dataset. 85/15 train/test split.
+              All classes have at least 480 training images; no dominant class.
+            </p>
+            <p style="font-size:0.67em; margin-top:0.35em; color:var(--muted);">
+              Augmentation: horizontal flip, rotation, zoom. Preprocessing locked to
+              MobileNetV2's expected input range at both train and inference time.
+            </p>
+          </div>
+          <div>
+            <p class="tag">Time Series &nbsp; LSTM</p>
+            <p style="font-size:0.67em; margin-top:0.55em;">
+              <strong>730 days</strong> of daily flagged-item counts for a Spanish supermarket.
+            </p>
+            <p style="font-size:0.67em; margin-top:0.35em;">
+              Weekly and yearly seasonality, growth trend, and three calendar-driven shock effects:
+              national holidays, end-of-month promotions under Law 1/2025, and August demand volatility.
+            </p>
+            <p style="font-size:0.67em; margin-top:0.35em; color:var(--muted);">
+              70/15/15 chronological split. Scaler fit on training portion only.
+              No future data ever leaked into training.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          SPEAKER: Sebastião.
+          For the CNN we used a Kaggle dataset of roughly 27,700 images covering ten produce types, fresh and rotten.
+          EDA confirmed well-balanced classes across all twenty, which mattered because imbalance would bias the classifier head.
+          We applied standard augmentation and locked MobileNetV2's preprocessing function at both training and inference time.
+          For the LSTM, we simulated 730 days of daily spoilage counts modelling a Spanish store.
+          Three calendar-keyed shock effects sit on top of the baseline seasonality: national holidays, Law 1/2025 markdown blocks, and August tourism swings.
+          The split is strictly chronological. We never shuffled future into past.
+        </aside>
+      </section>
+
+      <!-- ══ DIVIDER 02: COMPUTER VISION ═════════════════════════ YAXIN ══ -->
+      <section class="divider">
+        <p class="num">02</p>
+        <div class="rule"></div>
+        <h2>Computer Vision</h2>
+        <aside class="notes">SPEAKER: Yaxin. Hand-off from Sebastião.</aside>
+      </section>
+
+      <!-- ══ 5 · ARCHITECTURE ABLATION ═══════════════════════════ YAXIN ══ -->
+      <section>
+        <p class="eyebrow">Architecture Choice</p>
+        <h2>We ran the ablation, then chose</h2>
+        <div style="margin-top:0.7em; text-align:left;">
+
+          <div class="ablation-row fragment">
+            <div class="ablation-model">ANN baseline</div>
+            <div class="ablation-wrap">
+              <div class="ablation-bar bar-ann"></div>
+              <span class="ablation-pct">31.9%</span>
+            </div>
+          </div>
+
+          <div class="ablation-row fragment">
+            <div class="ablation-model">CNN from scratch</div>
+            <div class="ablation-wrap">
+              <div class="ablation-bar bar-cnn"></div>
+              <span class="ablation-pct">75.0%</span>
+            </div>
+          </div>
+
+          <div class="ablation-row fragment">
+            <div class="ablation-model">MobileNetV2 &nbsp;(transfer learning, fine-tuned top 30 layers)</div>
+            <div class="ablation-wrap">
+              <div class="ablation-bar bar-mv2"></div>
+              <span class="ablation-pct">95.8%</span>
+            </div>
+          </div>
+
+        </div>
+        <p class="caption-left fragment" style="margin-top:0.8em; font-size:0.55em;">
+          3.0&times; accuracy gain over the ANN baseline. 5.5&times; fewer parameters.
+          The architecture earns itself empirically.
+        </p>
+        <aside class="notes">
+          SPEAKER: Yaxin.
+          We did not just pick MobileNetV2 because it is popular. We ran a three-model ablation on the same twenty-class dataset.
+          The ANN baseline tops out at 31.9 percent. Not good enough for a real-time grader.
+          A CNN trained from scratch reaches 75 percent. The spatial hierarchy genuinely helps.
+          Transfer learning from ImageNet, then fine-tuning the top 30 layers, hits 95.8 percent.
+          That is three times the baseline accuracy, with 5.5 times fewer parameters.
+          Phase one: frozen backbone, new Dense head, LR 1e-3 for 5 epochs.
+          Phase two: top 30 layers unfrozen, LR 1e-5 to adjust weights rather than relearn them.
+        </aside>
+      </section>
+
+      <!-- ══ 6 · CNN PERFORMANCE + GRAD-CAM ═══════════════ BASSEM EL HALAWANI ══ -->
+      <section>
+        <p class="eyebrow">CNN Performance &middot; 20 classes &middot; 4,140 test images</p>
+          <div class="cols-3" style="margin-top:0.5em;">
+            <div class="stat-sm">
+              <div class="value">95.8%</div>
+              <div class="label">Test accuracy</div>
+            </div>
+            <div class="stat-sm">
+              <div class="value">0.998</div>
+              <div class="label">Binary AUC &nbsp; fresh vs. rotten</div>
+            </div>
+            <div class="stat-sm">
+              <div class="value">4,140</div>
+              <div class="label">Held-out test images</div>
+            </div>
+          </div>
+          <div class="cols" style="margin-top:0.75em; align-items:start;">
+            <div>
+              <p style="font-size:0.65em;">
+                Validation accuracy tracked training accuracy cleanly throughout both phases.
+                No overfitting observed.
+              </p>
+              <p style="font-size:0.65em; margin-top:0.45em;">
+                Low-confidence predictions are routed to a <strong>human review queue</strong>,
+                cutting false passes on ambiguous produce.
+              </p>
+              <p style="font-size:0.65em; margin-top:0.45em; color:var(--accent-mid);">
+                <strong>Grad-CAM</strong> generates an audit heatmap on every classification,
+                satisfying Law 1/2025's requirement for an interpretable grading decision.
+              </p>
+            </div>
+            <div>
+              <img src="docs/figures/gradcam_gallery.png" alt="Grad-CAM gallery showing attention on decay patches">
+              <p class="caption">Model attends to decay patches, not background. Every grade is auditable.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            SPEAKER: Bassem.
+            The fine-tuned MobileNetV2 hits 95.8 percent accuracy on 4,140 held-out images across 20 classes.
+            The binary fresh-versus-rotten AUC is 0.998. Near-perfect separation.
+            Training and validation curves track each other cleanly through both fine-tuning phases. No overfitting.
+            The Grad-CAM heatmaps show the model is looking at exactly the right place:
+            the browning patch on the banana, the mold on the strawberry, not the background or the bin behind it.
+            This matters for compliance. Law 1/2025 requires every grading decision to be auditable,
+            and Grad-CAM gives us that interpretability at zero extra inference cost.
+            Next slide has the full confusion matrix.
+          </aside>
+      </section>
+
+      <!-- ── CNN Detail: confusion matrix ── -->
+      <section>
+        <p class="eyebrow">CNN Detail</p>
+          <h3>20 &times; 20 confusion matrix</h3>
+          <img src="docs/figures/confusion_matrix.png" style="width:65%;" alt="20x20 confusion matrix">
+          <p class="caption">
+            Diagonal dominance across all classes. Errors are concentrated within a produce type,
+            not across the fresh/rotten boundary. The safety-critical pass-rotten-as-fresh rate is negligible at AUC 0.998.
+          </p>
+          <aside class="notes">
+            Backup slide for Q&A. Where the model errs, it confuses e.g. sell-soon apple with fresh apple,
+            not rotten orange with fresh apple. The boundary that matters in a real store is fresh versus rotten.
+            AUC 0.998 on that binary decision means near-zero false passes.
+          </aside>
+      </section>
+
+      <!-- ══ DIVIDER 03: SPOILAGE FORECASTING ════════════════════ JORGE ══ -->
+      <section class="divider">
+        <p class="num">03</p>
+        <div class="rule"></div>
+        <h2>Spoilage Forecasting</h2>
+        <aside class="notes">SPEAKER: Jorge. Hand-off from Bassem.</aside>
+      </section>
+
+      <!-- ══ 7 · LSTM DESIGN: THE NEGATIVE ARC ═══════════════════ JORGE ══ -->
+      <section>
+        <p class="eyebrow">LSTM Design</p>
+        <h2>A model that first lost, then learned</h2>
+        <div class="callout-warn fragment" style="margin-top:0.6em;">
+          <strong>First run:</strong> a count-only LSTM lost to the one-lag naive baseline by 6.8% MAE.
+        </div>
+        <div class="callout-win fragment" style="margin-top:0.5em;">
+          <strong>Root cause:</strong> the naive baseline copies last week's matching weekday. That is enough for regular seasonality.
+          What it cannot do is anticipate a multi-day holiday surge or an end-of-month markdown block,
+          because those effects are keyed to the calendar, not to past counts.
+        </div>
+        <p class="fragment" style="font-size:0.68em; text-align:left; margin-top:0.65em;">
+          <strong>The fix:</strong> 6 calendar features per day added to the window.
+          Day-of-week and day-of-year sin/cos encodings, a national-holiday flag,
+          and a Law 1/2025 promotion flag. Input shape: <code>(28, 7)</code> instead of <code>(28, 1)</code>.
+          The LSTM can now anticipate shocks the naive lag structurally cannot see.
+        </p>
+        <aside class="notes">
+          SPEAKER: Jorge.
+          I want to show you the moment our model failed, and how we fixed it. That arc is where the real technical depth is.
+          Version one was a univariate LSTM reading only past counts. It lost to a trivial one-lag naive baseline by 6.8 percent MAE.
+          That happened because the naive baseline copies last week's same weekday. On a regular weekly-seasonal series, that is already hard to beat with a shallow model.
+          The LSTM had no way to know that a three-day holiday weekend or an end-of-month markdown block was coming.
+          So we added six calendar features. They are leakage-free because dates are known in advance.
+          Same principle as exogenous regressors in SARIMAX or Prophet.
+          That change swung performance by roughly 49 percentage points.
+        </aside>
+      </section>
+
+      <!-- ══ 8 · LSTM RESULTS ══════════════════════════════════════ JORGE ══ -->
+      <section>
+        <p class="eyebrow">LSTM Results</p>
+          <div class="cols" style="align-items:center; gap:2.5em; margin-top:0.4em;">
+            <div>
+              <div class="stat">
+                <div class="value">+42.7%</div>
+                <div class="label">MAE reduction over one-lag naive</div>
+              </div>
+              <p style="font-size:0.58em; margin-top:0.9em; color:var(--muted);">
+                RMSE: +43.8% over naive.<br>
+                Model sits within 12% of the irreducible noise floor.
+              </p>
+            </div>
+            <div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th style="text-align:right;">MAE</th>
+                    <th style="text-align:right;">RMSE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>One-lag naive baseline</td>
+                    <td class="num">6.26</td>
+                    <td class="num">8.25</td>
+                  </tr>
+                  <tr class="hi">
+                    <td>Multivariate LSTM (ours)</td>
+                    <td class="num">3.59</td>
+                    <td class="num">4.64</td>
+                  </tr>
+                  <tr>
+                    <td style="color:var(--muted); font-style:italic;">Noise floor (irreducible)</td>
+                    <td class="num" style="color:var(--muted);">~3.19</td>
+                    <td class="num" style="color:var(--muted);">n/a</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="caption">Test set only. Strictly chronological split.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            SPEAKER: Jorge.
+            After the calendar-feature fix, the LSTM beats the naive baseline by 42.7 percent on MAE and 43.8 percent on RMSE.
+            MAE of 3.59. Noise floor is approximately 3.19, the irreducible error you get when you predict the deterministic signal perfectly
+            and only the daily noise remains. We are within 12 percent of that floor. That is near-optimal performance.
+            Training stopped at epoch 51, best weights around epoch 42, and validation loss stayed below training loss throughout. No overfitting.
+            Split is strictly chronological. Test set was never touched during model selection.
+          </aside>
+      </section>
+
+      <!-- ── LSTM Detail: noise floor ── -->
+      <section>
+        <p class="eyebrow">Forecasting Detail</p>
+          <h3>Why the noise floor matters</h3>
+          <p style="font-size:0.75em; text-align:left; margin-top:0.5em;">
+            The simulation injects <strong>N(0, 4)</strong> daily noise. A one-lag naive forecast carries two independent noise draws,
+            so its theoretical lower bound on MAE is approximately <strong>4.5</strong>, even before calendar shocks add additional error on shock days.
+          </p>
+          <p style="font-size:0.75em; text-align:left; margin-top:0.6em;">
+            A predictor that nails the deterministic signal perfectly achieves MAE of approximately
+            <strong>3.19</strong>, one noise draw, unavoidable. Our LSTM reaches <strong>3.59</strong>.
+            The gap of 0.40 is noise, not model weakness.
+          </p>
+          <p style="font-size:0.75em; text-align:left; margin-top:0.6em; color:var(--accent-mid);">
+            The right question is not "did you beat the baseline?" but "how far are you from the ceiling?"
+            We are 12% from the ceiling.
+          </p>
+          <aside class="notes">
+            Backup slide. Noise floor = 4 * sqrt(2/pi) = approximately 3.19.
+            Our MAE of 3.59 minus 3.19 = 0.40 unexplained. That is less than one item per day. Acceptable for store planning.
+          </aside>
+      </section>
+
+      <!-- ── LSTM Detail: calendar features ── -->
+      <section>
+        <p class="eyebrow">Forecasting Detail</p>
+          <h3>Why calendar features are valid</h3>
+          <ul style="text-align:left; font-size:0.75em; margin-top:0.6em;">
+            <li class="fragment">
+              Calendar shocks are <strong class="accent">real</strong>: Spanish national public holidays
+              and Law 1/2025 end-of-month markdown blocks.
+            </li>
+            <li class="fragment">
+              Calendar features are <strong class="accent">leakage-free</strong>: dates are known in advance.
+              Standard practice in SARIMAX, Prophet, and any production forecasting system.
+            </li>
+            <li class="fragment">
+              The model lands <strong class="accent">within 12% of the irreducible noise floor</strong>.
+              It is not beating a strawman. It is near-optimal.
+            </li>
+          </ul>
+          <aside class="notes">
+            Backup slide. Lead with the third point: the noise-floor framing is the hardest to dismiss.
+            Calendar features are genuinely known in advance, not post-hoc data leakage.
+          </aside>
+      </section>
+
+      <!-- ══ DIVIDER 04: THE FULL SYSTEM ══════════════════════════ MARCO ══ -->
+      <section class="divider">
+        <p class="num">04</p>
+        <div class="rule"></div>
+        <h2>FreshGuard Live</h2>
+        <aside class="notes">SPEAKER: Marco. Hand-off from Jorge.</aside>
+      </section>
+
+      <!-- ══ 9 · SYSTEM ARCHITECTURE ══════════════════════════════ MARCO ══ -->
+      <section>
+        <p class="eyebrow">Integration</p>
+        <h2>End to end in one FastAPI service</h2>
+
+        <p style="font-size:0.52em; color:var(--muted); text-align:left; margin:0.7em 0 0.25em;">
+          Scanner pipeline
+        </p>
+        <div class="pipeline">
+          <div class="pipe-node"><strong>Camera frame</strong></div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>YOLOv8n</strong>detect &amp; crop</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>MobileNetV2</strong>20-class grade</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>Grad-CAM</strong>audit heatmap</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>Grade</strong>fresh / sell-soon / reject</div>
+        </div>
+
+        <p style="font-size:0.52em; color:var(--muted); text-align:left; margin:0.8em 0 0.25em;">
+          Dashboard pipeline
+        </p>
+        <div class="pipeline">
+          <div class="pipe-node"><strong>Scan history</strong>730 days + live tally</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>build_features</strong>7 features/day</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>LSTM</strong>28-day window</div>
+          <span class="pipe-arrow">&#8594;</span>
+          <div class="pipe-node"><strong>7-day forecast</strong>+ action plan</div>
+        </div>
+
+        <p style="font-size:0.62em; text-align:left; margin-top:0.8em; color:var(--accent-mid);">
+          <strong>Live data flywheel:</strong> each day's conveyor tally feeds directly into the next LSTM forecast window.
+          The scanner literally trains the forecaster.
+        </p>
+        <aside class="notes">
+          SPEAKER: Marco.
+          The full system runs as a single FastAPI service. Two pipelines, one backend.
+          On the scanner side: YOLO detects and crops the produce, MobileNetV2 grades it, Grad-CAM generates the audit heatmap,
+          and the output goes to the floor staff immediately.
+          On the dashboard side: the last 28 days of scan history, plus today's live count, go through the feature builder and into the LSTM.
+          The output is a 7-day spoilage forecast with an action plan in plain language.
+          The key design choice: the scanner feeds the forecaster. Every scan is data for the next prediction.
+          Let me show you what this looks like in practice.
+        </aside>
+      </section>
+
+      <!-- ══ 10 · LIVE DEMO HANDOFF ════════════════════════════════ MARCO ══ -->
+      <section data-background-color="#1C2B1E" style="text-align:center;">
+        <p class="demo-headline">Let's see it live.</p>
+        <p class="demo-sub">
+          Live scanner &nbsp;&middot;&nbsp; Grad-CAM heatmaps
+          &nbsp;&middot;&nbsp; Manager dashboard &nbsp;&middot;&nbsp; LSTM forecast
+        </p>
+        <aside class="notes">
+          SPEAKER: Marco.
+          Switch to the browser now. FreshGuard app should be running.
+          Demo sequence (target 5 minutes):
+          1. Open the scanner tab. Show a fresh item, then a rotten one. Call out the grade label and the heatmap.
+          2. Switch to conveyor mode. Show majority-vote tracking across multiple frames.
+          3. Open the manager dashboard. Show the 90-day history chart and the 7-day LSTM forecast.
+          4. Point to the action plan callout (reorder recommendation + markdown-surge alert).
+          Then return here for Q&A.
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/notes/notes.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/markdown/markdown.min.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      transition: 'fade',
+      transitionSpeed: 'slow',
+      backgroundTransition: 'fade',
+      controls: true,
+      progress: true,
+      plugins: [ RevealNotes, RevealHighlight, RevealMath.KaTeX, RevealMarkdown ]
+    });
+
+    // Auto-play fragments within each slide so one click = one slide.
+    // Fragments reveal themselves 500 ms apart after the slide enters.
+    (function () {
+      var INTER_FRAGMENT = 500;  // ms between fragment reveals
+      var INITIAL_DELAY  = 650;  // ms after slide enters before first reveal
+      var timer = null;
+
+      function cancelTimer() {
+        if (timer) { clearTimeout(timer); timer = null; }
+      }
+
+      function startAutoPlay() {
+        cancelTimer();
+        (function tick() {
+          var slide   = Reveal.getCurrentSlide();
+          var pending = slide ? slide.querySelectorAll('.fragment:not(.visible)') : [];
+          if (pending.length === 0) return;
+          Reveal.nextFragment();
+          timer = setTimeout(tick, INTER_FRAGMENT);
+        }());
+      }
+
+      // Restart auto-play each time a new slide is shown.
+      // cancelTimer first so a stray timer from the previous slide never fires.
+      Reveal.on('slidechanged', function () {
+        cancelTimer();
+        timer = setTimeout(startAutoPlay, INITIAL_DELAY);
+      });
+
+      // Also run on first load.
+      Reveal.on('ready', function () {
+        timer = setTimeout(startAutoPlay, INITIAL_DELAY + 200);
+      });
+    }());
+  </script>
+</body>
+</html>
