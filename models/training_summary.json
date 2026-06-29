@@ -1,20 +1,20 @@
 {
   "ann_baseline": {
-    "test_accuracy": 0.222,
-    "test_loss": 2.3351,
+    "test_accuracy": 0.3191,
+    "test_loss": 2.1791,
     "params": 14292756,
-    "train_minutes": 13.2
+    "train_minutes": 17.0
   },
   "cnn_scratch": {
-    "test_accuracy": 0.7333,
-    "test_loss": 0.8149,
+    "test_accuracy": 0.7495,
+    "test_loss": 0.8063,
     "params": 8488148,
-    "train_minutes": 35.1
+    "train_minutes": 46.2
   },
   "mobilenetv2_tl": {
-    "test_accuracy": 0.956,
-    "test_loss": 0.1443,
+    "test_accuracy": 0.9575,
+    "test_loss": 0.1211,
     "params": 2591060,
-    "train_minutes": 39.1
+    "train_minutes": 61.2
   }
 }
