@@ -24,6 +24,7 @@ const TIERS = {
   reject:    { color: "#ff5c5c", text: "REJECT" },
   review:    { color: "#8fb8ff", text: "NEEDS REVIEW" },
   none:      { color: "#7e8a84", text: "NO PRODUCE" },
+  legend:    { color: "#e6ad3a", text: "LEGENDARY" },   // demo easter egg
   untrained: { color: "#7e8a84", text: "MODEL NOT TRAINED" },
 };
 
@@ -245,6 +246,7 @@ function render(data) {
   ctx.clearRect(0, 0, overlay.width, overlay.height);
   if (!data || data.error) return;
   const dets = data.detections || [];
+  if (!(dets[0] && dets[0].easter)) easterActive = false;  // re-arm the easter egg
 
   for (const d of dets) {
     const [x1, y1, x2, y2] = d.box;
@@ -270,6 +272,8 @@ function render(data) {
     setVerdict("idle", "No item in view", "hold produce up to the camera");
     $("details").innerHTML = PLACEHOLDER_DETAILS; $("heatmap-box").hidden = true;
     $("readout-card").hidden = true;
+  } else if (dets[0] && dets[0].easter) {
+    renderEaster(dets[0]);
   } else {
     const m = dets.reduce((a, b) => area(a) >= area(b) ? a : b);
     const s = TIERS[m.tier] || TIERS.untrained;
@@ -322,7 +326,7 @@ function setVerdict(tier, label, sub) {
   v.className = "card card--hero verdict" + (tier === "idle" ? "" : " " + tier);
   v.dataset.tier = tier;
   // drive the living verdict ring on the video frame
-  const RING = { fresh: "var(--st-fresh)", sell_soon: "var(--st-sell)", reject: "var(--st-reject)", review: "var(--st-review)" };
+  const RING = { fresh: "var(--st-fresh)", sell_soon: "var(--st-sell)", reject: "var(--st-reject)", review: "var(--st-review)", legend: "#e6ad3a" };
   const vw = $("video-wrap"); if (vw) vw.style.setProperty("--ring", RING[tier] || "var(--ink-line)");
   if (changed) {            // re-trigger the pop animation on a real change
     v.classList.remove("pop"); void v.offsetWidth; v.classList.add("pop");
@@ -759,6 +763,39 @@ function fruitReaction(fruit, tier) {
   }
   if (fruit === "banana" && tier !== "reject") { spawnBanana(r); sayBanana(); }
   if (tier === "fresh" && f && Math.random() < 0.5) toast(f.p, "good");
+}
+
+/* ---------------- demo easter egg: a face fills the frame ---------------- */
+let easterActive = false;
+function renderEaster(m) {
+  setVerdict("legend", "LEGENDARY FIND", m.note || "");
+  const lines = (m.fun && m.fun.lines) || [["Specimen", m.fruit]];
+  $("details").innerHTML = lines
+    .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  if ($("heatmap-box")) $("heatmap-box").hidden = true;
+  if ($("readout-card")) $("readout-card").hidden = true;
+  if (!easterActive) {            // celebrate only on the transition into it
+    easterActive = true;
+    easterCelebrate();
+    toast(`${m.fruit} detected — certified legend`, "good");
+    beep("high");
+    if (window.ctxActivity) ctxActivity(`<b>${m.fruit}</b> detected — legendary 👑`, "fresh");
+  }
+}
+function easterCelebrate() {
+  const v = $("verdict"); if (!v) return;
+  const r = v.getBoundingClientRect();
+  const emojis = ["🎉", "👑", "🧔", "🔥", "⭐", "🏆"];
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement("span");
+    s.className = "fruit-pop";
+    s.textContent = emojis[i % emojis.length];
+    s.style.left = (r.left + r.width * Math.random()) + "px";
+    s.style.top = (r.top + r.height * (0.3 + Math.random() * 0.4)) + "px";
+    s.style.animationDelay = (i * 55) + "ms";
+    document.body.appendChild(s);
+    s.addEventListener("animationend", () => s.remove(), { once: true });
+  }
 }
 
 /* ---------------- batch grading (drag a folder of images) ---------------- */

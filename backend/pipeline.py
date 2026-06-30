@@ -36,6 +36,15 @@ NO_PRODUCT_TAU = 0.42       # below this in the fallback path → "no produce in
 DETECT_CONF = 0.25          # YOLO detection threshold (lower = easier to detect)
 WHITE_BALANCE = True        # neutralize warm-light colour cast before inference
 
+# --- demo easter egg ---------------------------------------------------------
+# When a face fills the frame (a person, COCO class 0), short-circuit the
+# produce pipeline and return a "funny moment" verdict instead of trying to
+# grade a human as fruit. Pure crowd-pleaser for the live presentation.
+EASTER_EGG = True
+PERSON_CLASS = 0            # COCO 'person'
+EASTER_AREA = 0.16          # person box must cover >=16% of the frame to trigger
+EASTER_NAME = "BigBossBass"  # the legend himself
+
 # Overridden at load time by models/class_names.json (training export).
 # 10 produce types x {fresh, rotten}; only apple/banana/orange/carrot are
 # COCO-detectable — the rest are graded via the center-crop fallback.
@@ -356,6 +365,54 @@ class FreshGuardPipeline:
             out.append(v)
         return {"variants": out}
 
+    # ---------------- demo easter egg ----------------
+
+    def _easter_egg(self, frame_bgr: np.ndarray, boxes) -> dict | None:
+        """If a person's face fills the frame, return a tongue-in-cheek 'legend'
+        verdict instead of a produce grade. Returns None when no big-enough
+        person box is present, so normal grading proceeds."""
+        H, W = frame_bgr.shape[:2]
+        frame_area = float(H * W) or 1.0
+        best = None
+        for box in boxes:
+            if int(box.cls[0]) != PERSON_CLASS:
+                continue
+            x1, y1, x2, y2 = (int(v) for v in box.xyxy[0])
+            frac = max(0, x2 - x1) * max(0, y2 - y1) / frame_area
+            if frac >= EASTER_AREA and (best is None or frac > best[0]):
+                best = (frac, float(box.conf[0]), [x1, y1, x2, y2])
+        if best is None:
+            return None
+        _, conf, box = best
+        return {
+            "box": box,
+            "fruit": EASTER_NAME,
+            "track_id": None,
+            "det_conf": round(conf, 3),
+            "easter": True,
+            "tier": "legend",
+            "label": "Homo sapiens · heirloom variety",
+            "confidence": 0.999,
+            "rotten_prob": 0.0,
+            "severity": 0.0,
+            "shelf_life_days": 9999.0,
+            "action": "Certified legend — do NOT mark down",
+            "note": f"That's {EASTER_NAME}, not produce",
+            "fun": {
+                "name": EASTER_NAME,
+                "lines": [
+                    ["Specimen", EASTER_NAME],
+                    ["Variety", "100% organic, free-range legend"],
+                    ["Ripeness", "peak — aging like fine wine"],
+                    ["Freshness score", "999 / 100"],
+                    ["Rot probability", "0% — legends don't spoil"],
+                    ["Shelf life", "infinite"],
+                    ["Beard", "majestic"],
+                    ["Recommendation", "frame it, don't bin it"],
+                ],
+            },
+        }
+
     # ---------------- main entry ----------------
 
     def process_frame(self, frame_bgr: np.ndarray, mode: str = "single",
@@ -376,13 +433,26 @@ class FreshGuardPipeline:
                 frame_bgr, persist=True, classes=list(COCO_FRUIT),
                 conf=DETECT_CONF, verbose=False)
         else:
+            # also look for a person (COCO 0) so the face-fills-frame easter egg
+            # can fire; person boxes are filtered out of grading below.
+            cls = list(COCO_FRUIT) + ([PERSON_CLASS] if EASTER_EGG else [])
             results = self.detector(
-                frame_bgr, classes=list(COCO_FRUIT), conf=DETECT_CONF, verbose=False)
+                frame_bgr, classes=cls, conf=DETECT_CONF, verbose=False)
 
         detections = []
         boxes = results[0].boxes
+
+        # Easter egg: a face filling the frame wins outright (single mode only).
+        if EASTER_EGG and mode == "single" and boxes is not None:
+            egg = self._easter_egg(frame_bgr, boxes)
+            if egg is not None:
+                return {"detections": [egg], "model_loaded": self.model_loaded,
+                        "easter": True}
+
         if boxes is not None:
             for box in boxes:
+                if int(box.cls[0]) == PERSON_CLASS:
+                    continue   # person boxes are only for the easter egg
                 x1, y1, x2, y2 = (int(v) for v in box.xyxy[0])
                 fruit = COCO_FRUIT.get(int(box.cls[0]), "fruit")
                 track_id = int(box.id[0]) if box.id is not None else None

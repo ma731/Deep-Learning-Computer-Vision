@@ -259,7 +259,7 @@ body{
 .verdict::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 100% at 0 0,color-mix(in srgb,var(--vc,transparent) 14%,transparent),transparent 60%)}
 .verdict-label{font:600 clamp(34px,3.4vw,52px)/1.02 var(--serif);letter-spacing:-.02em;color:var(--vc,var(--ink));position:relative}
 .verdict-sub{font-size:13.5px;color:var(--ink-2);position:relative}
-.verdict.fresh{--vc:var(--st-fresh)}.verdict.sell_soon{--vc:var(--st-sell)}.verdict.reject{--vc:var(--st-reject)}.verdict.review{--vc:var(--st-review)}
+.verdict.fresh{--vc:var(--st-fresh)}.verdict.sell_soon{--vc:var(--st-sell)}.verdict.reject{--vc:var(--st-reject)}.verdict.review{--vc:var(--st-review)}.verdict.legend{--vc:#e6ad3a}
 .pop{animation:pop .2s var(--ease)}
 @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.12)}100%{transform:scale(1)}}
 
