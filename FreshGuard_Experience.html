@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FreshGuard — Reading Freshness · IE Deep Learning</title>
+<meta name="description" content="FreshGuard reads loose produce in real time and turns the read into a price decision and a reorder signal. An IE University deep-learning final project.">
+
+<script>document.documentElement.className='js';</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   FreshGuard — "Reading Freshness"  ·  Lab / Spectral
+   An immersive scroll instrument. Dark spectral surfaces,
+   electric-lime scan beam, cyan data, mono telemetry.
+   ============================================================ */
+:root{
+  --void:#0a0e0d; --void-2:#070a09; --card:#121a17; --float:#1a241f;
+  --ink:#eaf2ec; --ink-2:rgba(234,242,236,.74); --ink-3:rgba(234,242,236,.46);
+  --line:rgba(234,242,236,.10); --line-hi:rgba(234,242,236,.18); --top:rgba(234,242,236,.05);
+  --lime:#84e32b; --lime-bright:#a8ff35; --glow:rgba(168,255,53,.32);
+  --data:#43e5c0; --amber:#f5b73d;
+  --fresh:#a8ff35; --sell:#f5b73d; --reject:#ff5c5c; --review:#8fb8ff;
+  --serif:"Space Grotesk", system-ui, sans-serif;
+  --sans:"Inter", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, monospace;
+  --eout:cubic-bezier(.23,1,.32,1); --eio:cubic-bezier(.77,0,.175,1);
+  --maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:auto}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+.lenis.lenis-smooth iframe{pointer-events:none}
+body{
+  background:var(--void); color:var(--ink);
+  font-family:var(--sans); font-size:17px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--glow);color:var(--void)}
+
+/* grain + WebGL field */
+.grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+#bg-canvas{position:fixed;inset:0;z-index:0;width:100%;height:100%;display:block;pointer-events:none}
+.bg-fallback{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(60% 55% at 70% 12%, rgba(67,229,192,.10), transparent 64%),
+    radial-gradient(55% 50% at 12% 8%, rgba(168,255,53,.08), transparent 60%),
+    radial-gradient(80% 60% at 50% 120%, rgba(132,227,43,.05), transparent 72%),
+    var(--void);}
+html.webgl-on .bg-fallback{opacity:.5}
+
+/* ---------------- PRELOADER ---------------- */
+#preloader{position:fixed;inset:0;z-index:200;background:var(--void-2);display:grid;place-items:center;
+  transition:opacity .8s var(--eout),visibility .8s}
+#preloader.done{opacity:0;visibility:hidden}
+.pre-inner{text-align:center}
+.pre-reticle{width:64px;height:64px;margin:0 auto 1.4rem;position:relative}
+.pre-reticle::before,.pre-reticle::after{content:"";position:absolute;inset:0;border:1px solid var(--line-hi);border-radius:50%}
+.pre-reticle::after{inset:18px;border-color:var(--glow)}
+.pre-dot{position:absolute;top:50%;left:50%;width:8px;height:8px;border-radius:50%;background:var(--lime-bright);
+  transform:translate(-50%,-50%);box-shadow:0 0 18px var(--glow);animation:prePulse 1.2s ease-in-out infinite}
+@keyframes prePulse{0%,100%{opacity:1}50%{opacity:.3}}
+.pre-word{font-family:var(--serif);font-weight:600;font-size:clamp(2rem,6vw,3.2rem);letter-spacing:-.02em}
+.pre-word b{color:var(--lime-bright);font-weight:600}
+.pre-bar{width:min(260px,60vw);height:2px;background:var(--line);margin:1.3rem auto .7rem;overflow:hidden}
+.pre-fill{height:100%;width:0;background:var(--lime-bright);box-shadow:0 0 12px var(--glow)}
+.pre-status{font:500 .72rem/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ---------------- CHROME ---------------- */
+.wordmark{position:fixed;top:clamp(16px,2.4vh,28px);left:clamp(18px,3vw,40px);z-index:90;
+  display:flex;align-items:center;gap:.55rem;font-family:var(--serif);font-weight:600;font-size:1rem;mix-blend-mode:difference}
+.wordmark .ap{width:16px;height:16px;border:1.5px solid var(--lime-bright);border-radius:50%;display:grid;place-items:center;position:relative}
+.wordmark .ap::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 8px var(--glow)}
+.wordmark b{color:var(--lime-bright);font-weight:600}
+
+.topbar{position:fixed;top:clamp(16px,2.4vh,28px);right:clamp(18px,3vw,40px);z-index:90;display:flex;gap:.5rem;align-items:center}
+.pill{font:600 .64rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--line);background:rgba(10,14,13,.55);backdrop-filter:blur(8px);
+  padding:.5rem .7rem;border-radius:999px;cursor:pointer;transition:color .2s,border-color .2s}
+.pill:hover{color:var(--lime-bright);border-color:var(--glow)}
+.pill.on{color:var(--void);background:var(--lime-bright);border-color:var(--lime-bright)}
+
+/* chapter rail */
+.rail{position:fixed;top:50%;right:clamp(14px,2vw,28px);transform:translateY(-50%);z-index:85;
+  display:flex;flex-direction:column;gap:11px;align-items:flex-end}
+.rail a{display:flex;align-items:center;gap:.55rem;cursor:pointer;opacity:.5;transition:opacity .3s}
+.rail a:hover{opacity:1}
+.rail .lab{font:500 .64rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);
+  opacity:0;transform:translateX(6px);transition:opacity .3s,transform .3s;white-space:nowrap;pointer-events:none}
+.rail a:hover .lab{opacity:1;transform:none}
+.rail .tk{width:22px;height:2px;background:var(--ink-3);border-radius:2px;transition:width .3s,background .3s}
+.rail a.on{opacity:1}
+.rail a.on .tk{width:34px;background:var(--lime-bright);box-shadow:0 0 8px var(--glow)}
+.rail a.on .lab{opacity:1;transform:none;color:var(--lime-bright)}
+
+.progress{position:fixed;left:0;top:0;height:2px;width:0;background:var(--lime-bright);z-index:95;box-shadow:0 0 10px var(--glow)}
+
+/* scan-sweep chapter transition */
+.scansweep{position:fixed;left:0;right:0;top:0;height:160px;z-index:120;pointer-events:none;opacity:0;transform:translateY(-200px);
+  background:linear-gradient(180deg,transparent,rgba(168,255,53,.08) 55%,rgba(168,255,53,.45) 90%,var(--lime-bright))}
+.scansweep.go{animation:sweep .8s var(--eout)}
+@keyframes sweep{0%{opacity:1;transform:translateY(-200px)}100%{opacity:0;transform:translateY(108vh)}}
+
+/* custom cursor */
+.cursor,.cursor-ring{position:fixed;top:0;left:0;z-index:130;pointer-events:none;border-radius:50%;will-change:transform}
+.cursor{width:6px;height:6px;background:var(--lime-bright);margin:-3px 0 0 -3px;box-shadow:0 0 10px var(--glow)}
+.cursor-ring{width:34px;height:34px;border:1px solid rgba(168,255,53,.55);margin:-17px 0 0 -17px;transition:width .25s var(--eout),height .25s var(--eout),margin .25s var(--eout),border-color .25s}
+.cursor-ring.hot{width:56px;height:56px;margin:-28px 0 0 -28px;border-color:var(--lime-bright)}
+@media (hover:none),(pointer:coarse){.cursor,.cursor-ring{display:none!important}}
+
+/* chapter navigator */
+.chapnav{position:fixed;right:clamp(18px,3vw,40px);bottom:clamp(18px,3vh,32px);z-index:88;display:flex;align-items:center;gap:.6rem}
+.cn-btn{cursor:pointer;border:1px solid var(--line-hi);background:rgba(10,14,13,.72);backdrop-filter:blur(10px);color:var(--ink);
+  font-family:var(--mono);border-radius:999px;transition:transform .35s var(--eout),border-color .3s,color .3s}
+.cn-btn.prev{width:46px;height:46px;display:grid;place-items:center;font-size:1.05rem}
+.cn-btn.next{display:flex;align-items:center;gap:.6rem;padding:.75rem 1.15rem;font-weight:600}
+.cn-btn .cn-pre{font:600 .58rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--lime-bright)}
+.cn-btn .cn-lab{font:600 .76rem/1 var(--mono);letter-spacing:.01em}
+.cn-btn .cn-ar{font-size:1.05rem;transition:transform .3s var(--eout);color:var(--lime-bright)}
+.cn-btn:hover{border-color:var(--glow);color:var(--lime-bright)}
+.cn-btn.next:hover .cn-ar{transform:translateX(5px)}
+.cn-btn:active{transform:scale(.95)!important}
+body.present .chapnav{display:none}
+@media (max-width:560px){ .cn-btn .cn-lab{display:none} }
+
+/* hero scan-line sweep */
+.hero-scan{position:absolute;left:0;right:0;top:0;height:2px;z-index:1;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--lime-bright) 45%,var(--data) 55%,transparent);
+  box-shadow:0 0 22px var(--glow);opacity:0;animation:heroScan 7s ease-in-out infinite}
+@keyframes heroScan{0%{transform:translateY(-10px);opacity:0}8%{opacity:.85}48%{transform:translateY(100svh);opacity:.85}54%{opacity:0}100%{transform:translateY(-10px);opacity:0}}
+
+/* presenter mode */
+body.present .rail{opacity:.25}
+.pbar{position:fixed;left:0;right:0;bottom:0;z-index:96;display:none;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.7rem clamp(18px,3vw,40px);background:rgba(7,10,9,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line-hi)}
+body.present .pbar{display:flex}
+.pbar .who{font:600 .8rem/1.3 var(--sans)} .pbar .who b{color:var(--lime-bright)}
+.pbar .who span{display:block;font:500 .66rem/1 var(--mono);color:var(--ink-3);margin-top:.3rem;letter-spacing:.06em;text-transform:uppercase}
+.pbar .tmr{font-family:var(--serif);font-weight:600;font-size:1.4rem;color:var(--lime-bright);font-variant-numeric:tabular-nums}
+.pbar .tmr.warn{color:var(--amber)} .pbar .tmr.over{color:var(--reject)}
+.pbar .nav{display:flex;gap:.5rem}
+.pbar .nav button{font:600 .68rem/1 var(--mono);color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.5rem .7rem;cursor:pointer}
+.pbar .nav button:hover{color:var(--lime-bright);border-color:var(--glow)}
+
+/* ---------------- LAYOUT ---------------- */
+main{position:relative;z-index:1}
+section{position:relative;padding:clamp(80px,12vh,160px) clamp(22px,5vw,72px)}
+section.solid{background:linear-gradient(180deg,rgba(10,14,13,.90),rgba(10,14,13,.95))}
+.wrap{max-width:var(--maxw);margin:0 auto;width:100%}
+.narrow{max-width:760px}
+.chapter-tag{display:inline-flex;align-items:center;gap:.6rem;font:600 .68rem/1 var(--mono);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--lime-bright);margin-bottom:1.4rem}
+.chapter-tag .no{color:var(--ink-3)}
+.chapter-tag .own{color:var(--ink-3);border-left:1px solid var(--line);padding-left:.6rem}
+.kicker{font:500 .82rem/1.4 var(--mono);color:var(--data);letter-spacing:.02em;margin-bottom:1rem;text-transform:none}
+h2.title{font-family:var(--serif);font-weight:600;letter-spacing:-.025em;line-height:1.02;
+  font-size:clamp(2rem,5.2vw,3.8rem);text-wrap:balance;margin-bottom:1.2rem}
+h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;font-size:clamp(1.15rem,2vw,1.5rem);margin-bottom:.6rem}
+.lead{font-size:clamp(1.05rem,1.7vw,1.32rem);line-height:1.55;color:var(--ink);max-width:64ch;text-wrap:pretty}
+.body{color:var(--ink-2);max-width:66ch}
+.body p+p{margin-top:1rem}
+.body b,.body strong{color:var(--ink);font-weight:600}
+.hi{color:var(--lime-bright);font-weight:600}
+.cy{color:var(--data)}
+.dim{color:var(--ink-3)}
+.split2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.6rem,4vw,4rem);align-items:center}
+.split2.top{align-items:start}
+.split2.viz-r{grid-template-columns:.92fr 1.08fr}
+.split2.viz-l{grid-template-columns:1.08fr .92fr}
+.stack>*+*{margin-top:1.2rem}
+
+/* pull-quote */
+.pq{font-family:var(--serif);font-weight:500;font-size:clamp(1.3rem,2.6vw,2rem);line-height:1.25;
+  letter-spacing:-.015em;color:var(--ink);max-width:24ch;text-wrap:balance}
+.pq .hi{color:var(--lime-bright)}
+.pq-rule{width:54px;height:3px;background:var(--lime-bright);box-shadow:0 0 14px var(--glow);margin-bottom:1.2rem;border-radius:2px}
+
+/* telemetry chips */
+.telem{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.4rem}
+.tchip{font:500 .72rem/1.3 var(--mono);color:var(--ink-2);border:1px solid var(--line);background:var(--void-2);
+  border-radius:8px;padding:.5rem .7rem}
+.tchip b{color:var(--lime-bright);font-weight:600}
+.tchip .c{color:var(--data)}
+
+/* big metric */
+.metric{font-family:var(--serif);font-weight:600;font-variant-numeric:tabular-nums;line-height:.9;
+  font-size:clamp(3rem,8vw,6rem);color:var(--lime-bright)}
+.metric.cy{color:var(--data)}
+.metric small{font-size:.4em;color:var(--ink-3);font-family:var(--mono);font-weight:500;letter-spacing:.05em;display:block;margin-top:.6rem}
+.metric-row{display:flex;flex-wrap:wrap;gap:clamp(1.4rem,4vw,3rem)}
+
+/* cards / panels */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.4rem 1.5rem;
+  box-shadow:inset 0 1px 0 var(--top),0 20px 50px -28px rgba(0,0,0,.7)}
+.note{font:500 .85rem/1.55 var(--sans);color:var(--ink-3)}
+.note b{color:var(--ink-2)}
+.tag{display:inline-block;padding:.32rem .68rem;border-radius:7px;border:1px solid var(--line-hi);background:var(--void-2);
+  color:var(--lime-bright);font:600 .64rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.tag.cy{color:var(--data)}
+.coursechip{display:inline-flex;align-items:center;gap:.4rem;font:600 .58rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--data);border:1px solid rgba(67,229,192,.34);background:rgba(67,229,192,.07);border-radius:999px;padding:.3rem .55rem;vertical-align:middle;margin-right:.4rem}
+
+/* status chips */
+.tiers{display:flex;flex-wrap:wrap;gap:.5rem}
+.chip{display:inline-flex;align-items:center;gap:.5rem;padding:.42rem .8rem;border-radius:999px;
+  font:600 .72rem/1 var(--mono);letter-spacing:.03em;border:1px solid var(--line);background:var(--void-2)}
+.chip i{width:9px;height:9px;border-radius:50%}
+.chip.fresh i{background:var(--fresh);box-shadow:0 0 9px rgba(168,255,53,.6)} .chip.fresh{color:var(--fresh)}
+.chip.sell i{background:var(--sell)} .chip.sell{color:var(--sell)}
+.chip.reject i{background:var(--reject)} .chip.reject{color:var(--reject)}
+.chip.review i{background:var(--review)} .chip.review{color:var(--review)}
+
+/* reveal (beam pass) */
+.reveal{opacity:0;transform:translateY(24px);filter:blur(6px)}
+.is-in .reveal,.reveal.is-in{opacity:1;transform:none;filter:none;transition:opacity .9s var(--eout),transform .9s var(--eout),filter .9s var(--eout)}
+.r2{transition-delay:.08s}.r3{transition-delay:.16s}.r4{transition-delay:.24s}.r5{transition-delay:.32s}
+/* scan-line divider */
+.beam{position:relative;height:1px;background:var(--line);overflow:visible;margin:0}
+.beam::after{content:"";position:absolute;left:0;top:-1px;height:3px;width:0;background:var(--lime-bright);box-shadow:0 0 12px var(--glow)}
+.beam.is-in::after{width:100%;transition:width 1.2s var(--eout)}
+
+/* kinetic headline chars */
+.kin .ch{display:inline-block;will-change:transform}
+.kin .wsp{display:inline-block}
+
+/* ---------------- HERO ---------------- */
+#hero{min-height:100svh;display:flex;align-items:center;padding-top:0;padding-bottom:0;overflow:hidden}
+#hero .orchard{position:absolute;inset:0;z-index:-1;background:url("frontend/assets/orchard.jpg") center/cover no-repeat;
+  filter:saturate(.5) brightness(.3) hue-rotate(34deg) contrast(1.05);transform:scale(1.06)}
+#hero .veil{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,12,11,.45),rgba(8,12,11,.7) 60%,var(--void))}
+.hero-inner{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;width:100%}
+.hero-eyebrow{font:600 .72rem/1 var(--mono);letter-spacing:.32em;text-transform:uppercase;color:var(--lime-bright);margin-bottom:1.6rem}
+.hero-h1{font-family:var(--serif);font-weight:600;letter-spacing:-.035em;line-height:.92;font-size:clamp(3.4rem,13vw,9rem)}
+.hero-h1 b{color:var(--lime-bright);font-weight:600}
+.hero-sub{font-family:var(--serif);font-weight:400;font-size:clamp(1.2rem,3vw,2rem);margin-top:1rem;color:var(--ink);max-width:24ch}
+.hero-sub em{color:var(--lime-bright);font-style:italic}
+.hero-desc{margin-top:1.4rem;max-width:52ch;color:var(--ink-2);font-size:1.05rem}
+.hero-meta{margin-top:2.2rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:center}
+.hero-meta .arch{font:600 .72rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--data);
+  border:1px solid var(--line);border-radius:999px;padding:.55rem .9rem}
+.hero-tele{position:absolute;bottom:clamp(28px,5vh,52px);left:0;right:0;z-index:2;max-width:var(--maxw);margin:0 auto;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;padding:0 clamp(22px,5vw,72px)}
+.hero-tele .t{font:500 .68rem/1.5 var(--mono);color:var(--ink-3);letter-spacing:.04em}
+.hero-tele .t b{color:var(--lime-bright)}
+.scrollcue{display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--ink-3);font:500 .62rem/1 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+.scrollcue .ln{width:1px;height:34px;background:linear-gradient(var(--lime-bright),transparent);animation:cue 1.8s ease-in-out infinite}
+@keyframes cue{0%{opacity:.2;transform:scaleY(.4);transform-origin:top}50%{opacity:1}100%{opacity:.2;transform:scaleY(1)}}
+
+/* metric panel */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.6rem}
+.kpi{border-top:1px solid var(--line);padding-top:.9rem}
+.kpi .v{font-family:var(--serif);font-weight:600;font-size:clamp(1.8rem,3.5vw,2.6rem);color:var(--lime-bright);line-height:1;font-variant-numeric:tabular-nums}
+.kpi .v.cy{color:var(--data)}
+.kpi .l{font:500 .66rem/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}
+
+/* canvas viz */
+.viz{width:100%;display:block}
+.viz-frame{background:var(--void-2);border:1px solid var(--line);border-radius:16px;padding:1rem;position:relative;overflow:hidden}
+.viz-frame .cap{font:500 .74rem/1.5 var(--mono);color:var(--ink-3);margin-top:.7rem;letter-spacing:.02em}
+.viz-frame .badge{position:absolute;top:12px;right:14px;font:600 .6rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--data)}
+
+/* plate (figure) */
+.plate{background:#0d120f;border:1px solid var(--line);border-radius:14px;padding:.6rem;overflow:hidden;position:relative}
+.plate img{border-radius:8px;width:100%}
+.plate .lab{position:absolute;bottom:10px;left:12px;font:600 .6rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);background:rgba(7,10,9,.7);padding:.3rem .5rem;border-radius:5px}
+.plates{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
+
+/* class mosaic */
+.mosaic{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem}
+.mosaic .cell{aspect-ratio:1;border-radius:9px;overflow:hidden;border:1px solid var(--line);position:relative;background:var(--card)}
+.mosaic .cell img{width:100%;height:100%;object-fit:cover;filter:saturate(.9)}
+.mosaic .cell .tg{position:absolute;left:5px;bottom:5px;font:600 .52rem/1 var(--mono);letter-spacing:.04em;color:#fff;text-shadow:0 1px 4px #000;text-transform:uppercase}
+.mosaic .cell.rot .tg{color:var(--reject)} .mosaic .cell.frs .tg{color:var(--fresh)}
+
+/* callouts */
+.box{border:1px solid var(--line);border-radius:12px;padding:.95rem 1.1rem;font-size:.95rem;line-height:1.5}
+.box.good{border-color:var(--glow);background:rgba(168,255,53,.06)} .box.good b{color:var(--lime-bright)}
+.box.bad{border-color:rgba(255,92,92,.34);background:rgba(255,92,92,.06)} .box.bad b{color:var(--reject)}
+.box.info{border-color:rgba(143,184,255,.32);background:rgba(143,184,255,.06)} .box.info b{color:var(--review)}
+.box.cy{border-color:rgba(67,229,192,.32);background:rgba(67,229,192,.06)} .box.cy b{color:var(--data)}
+
+/* two-phase finetune */
+.phases{display:grid;gap:.8rem}
+.phase{display:flex;align-items:center;gap:1rem;border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:var(--card)}
+.phase .ic{flex:none;width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:1.2rem;border:1px solid var(--line);background:var(--void-2)}
+.phase.open .ic{border-color:var(--glow);color:var(--lime-bright)}
+.phase .tt{flex:1}.phase .tt b{font-family:var(--serif);font-weight:600;color:var(--ink)}
+.phase .tt span{display:block;font-size:.85rem;color:var(--ink-3);margin-top:.2rem}
+.phase .lr{font:600 .72rem/1 var(--mono);color:var(--data);border:1px solid var(--line);border-radius:7px;padding:.4rem .55rem;white-space:nowrap}
+
+/* math strip */
+.math{font:500 .9rem/1.8 var(--mono);color:var(--ink-2);background:var(--void-2);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem}
+.math .ln{display:block;opacity:.4;transition:opacity .5s}
+.math .ln.on{opacity:1;color:var(--ink)}
+.math .ln b{color:var(--lime-bright)}
+
+/* decision machine */
+.dm{display:grid;gap:1rem}
+.dm-bar{position:relative;height:54px;border-radius:12px;overflow:hidden;border:1px solid var(--line);
+  background:linear-gradient(90deg,
+    var(--fresh) 0%, var(--fresh) 40%,
+    var(--sell) 40%, var(--sell) 65%,
+    var(--reject) 65%, var(--reject) 100%);opacity:.92}
+.dm-bar .needle{position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;box-shadow:0 0 10px #fff,0 0 20px var(--glow);left:50%;transform:translateX(-50%)}
+.dm-bar .lbls{position:absolute;inset:0;display:flex;align-items:center;font:700 .7rem/1 var(--mono);text-transform:uppercase;color:var(--void);letter-spacing:.06em}
+.dm-bar .lbls span{position:absolute;transform:translateX(-50%)}
+.dm-out{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.dm-verdict{font-family:var(--serif);font-weight:600;font-size:1.6rem}
+.dm-slider{width:100%}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;background:var(--line);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 12px var(--glow);cursor:pointer;border:2px solid var(--void)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--lime-bright);cursor:pointer;border:2px solid var(--void)}
+.shelf{font-family:var(--mono);font-weight:600;border:1px dashed var(--line-hi);border-radius:10px;padding:.7rem .9rem;color:var(--ink);background:var(--void-2)}
+
+/* robustness rig */
+.rig{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem}
+.station{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1rem}
+.station .n{font:600 .62rem/1 var(--mono);color:var(--lime-bright);letter-spacing:.1em}
+.station h4{font-family:var(--serif);font-weight:600;font-size:1rem;margin:.6rem 0 .4rem}
+.station p{font-size:.82rem;color:var(--ink-3);line-height:1.45}
+
+/* conveyor */
+.conveyor{position:relative;height:200px;border:1px solid var(--line);border-radius:14px;background:var(--void-2);overflow:hidden}
+.belt{position:absolute;left:0;right:0;bottom:0;height:36px;background:repeating-linear-gradient(90deg,#11181400 0 26px,#1a241f 26px 30px);border-top:1px solid var(--line)}
+.fruit{position:absolute;bottom:40px;width:58px;height:58px;border-radius:12px;display:grid;place-items:center;font-size:1.7rem;
+  border:1px solid var(--glow);background:rgba(168,255,53,.06)}
+.fruit .id{position:absolute;top:-18px;left:0;font:600 .58rem/1 var(--mono);color:var(--data)}
+.scanline{position:absolute;top:0;bottom:36px;width:2px;left:50%;background:var(--lime-bright);box-shadow:0 0 16px var(--glow)}
+
+/* flywheel calculator */
+.calc{display:grid;gap:1.1rem}
+.calc .row{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center}
+.calc .row label{font:500 .82rem/1.3 var(--sans);color:var(--ink-2)}
+.calc .row .val{font-family:var(--mono);font-weight:600;color:var(--lime-bright);min-width:7ch;text-align:right}
+.calc-out{border-top:1px solid var(--line);padding-top:1.1rem;display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.calc-out .big{font-family:var(--serif);font-weight:600;font-size:clamp(2rem,5vw,3rem);color:var(--lime-bright);font-variant-numeric:tabular-nums}
+.stamp{display:inline-block;font:700 .58rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);
+  border:1px solid rgba(245,183,61,.4);border-radius:6px;padding:.35rem .55rem;transform:rotate(-3deg)}
+
+/* loop diagram */
+.loop{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:center}
+.loop .node{border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;font:600 .74rem/1.2 var(--mono);color:var(--ink-2);background:var(--card);text-align:center}
+.loop .node b{color:var(--lime-bright)}
+.loop .ar{color:var(--lime);opacity:.7}
+
+/* market / TAM */
+.funnel{display:grid;gap:.7rem}
+.fl{border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;background:var(--card)}
+.fl .h{display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.fl .h b{font-family:var(--serif);font-weight:600;color:var(--ink)}
+.fl .h .v{font-family:var(--mono);font-weight:600;color:var(--lime-bright)}
+.fl p{font-size:.84rem;color:var(--ink-3);margin-top:.4rem;line-height:1.45}
+.fl.t1{margin:0} .fl.t2{margin:0 6%} .fl.t3{margin:0 12%}
+
+/* pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.pillar{border:1px solid var(--line);border-radius:14px;padding:1.3rem;background:var(--card)}
+.pillar .n{font:600 .64rem/1 var(--mono);letter-spacing:.14em;color:var(--lime-bright)}
+.pillar h4{font-family:var(--serif);font-weight:600;font-size:1.1rem;margin:.7rem 0 .5rem}
+.pillar p{font-size:.86rem;color:var(--ink-2);line-height:1.45}
+
+/* sticky notes / roadmap */
+.notes-board{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem}
+.snote{border:1px solid rgba(245,183,61,.3);background:rgba(245,183,61,.05);border-radius:10px;padding:.95rem 1.1rem}
+.snote b{color:var(--amber)} .snote p{font-size:.85rem;color:var(--ink-2);margin-top:.3rem;line-height:1.45}
+.roadmap{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.2rem}
+.rstep{font:500 .76rem/1.3 var(--mono);color:var(--ink-2);border:1px solid var(--line);border-radius:999px;padding:.5rem .8rem;background:var(--void-2)}
+.rstep .n{color:var(--data)}
+.stack-diag{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.stack-diag .s{font:600 .72rem/1.2 var(--mono);color:var(--ink-2);border:1px solid var(--line);border-radius:9px;padding:.55rem .7rem;background:var(--card)}
+.stack-diag .s b{color:var(--lime-bright)}
+
+/* campaign film */
+.film{position:relative;width:100%;max-width:1080px;margin:1.4rem auto 0;aspect-ratio:16/9;max-height:64vh;
+  border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  background:radial-gradient(60% 60% at 50% 38%,rgba(67,229,192,.07),transparent 70%),var(--void-2);
+  box-shadow:inset 0 1px 0 var(--top),0 30px 70px -34px rgba(0,0,0,.85)}
+.film-frame{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:clamp(1rem,3vw,2rem);opacity:0}
+.film-frame .ff{display:flex;flex-direction:column;align-items:center;gap:clamp(.7rem,2.4vh,1.3rem);max-width:94%}
+.film-frame .big{font-family:var(--serif);font-weight:600;letter-spacing:-.02em;line-height:1.05;font-size:clamp(1.5rem,4.2vw,3rem);color:var(--ink)}
+.film-frame .big b{color:var(--lime-bright)}
+.film-frame .small{font:500 .72rem/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.film-logo{font-family:var(--serif);font-weight:600;font-size:clamp(1.5rem,4vw,2.2rem)}
+.film-logo span{color:var(--lime-bright)}
+.film-produce{width:clamp(130px,20vh,210px);aspect-ratio:1;border-radius:16px;overflow:hidden;position:relative;
+  border:1px solid var(--glow);box-shadow:0 0 36px -8px var(--glow)}
+.film-produce img{width:100%;height:100%;object-fit:cover;display:block}
+.film-scan{position:absolute;left:0;right:0;height:2px;top:50%;background:linear-gradient(90deg,transparent,var(--lime-bright),transparent);
+  box-shadow:0 0 16px var(--glow);animation:filmScan 2s ease-in-out infinite;z-index:2}
+@keyframes filmScan{0%{top:6%}50%{top:94%}100%{top:6%}}
+.film-verdicts{display:flex;gap:clamp(.8rem,2.5vw,1.7rem);flex-wrap:wrap;justify-content:center}
+.film-card{display:grid;gap:.5rem;justify-items:center}
+.film-card .pic{width:clamp(76px,12vh,120px);aspect-ratio:1;border-radius:13px;overflow:hidden;border:1px solid var(--line-hi)}
+.film-card .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.film-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(234,242,236,.08);z-index:2}
+.film-fill{height:100%;width:0;background:var(--lime-bright);box-shadow:0 0 10px var(--glow)}
+.film-play{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line-hi);
+  background:rgba(10,14,13,.6);backdrop-filter:blur(8px);color:var(--lime-bright);cursor:pointer;font-size:.62rem;z-index:3;display:grid;place-items:center}
+.film-play:hover{border-color:var(--glow)}
+.campaign-lines{display:grid;gap:.6rem}
+.cl{display:flex;justify-content:space-between;align-items:center;gap:1rem;border:1px solid var(--line);border-radius:10px;padding:.75rem 1rem;background:var(--card)}
+.cl .q{font-family:var(--serif);font-weight:500;font-size:1rem;color:var(--ink)}
+.cl .ch{font:600 .56rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--data);white-space:nowrap}
+@media (max-width:620px){ .campaign-lines{grid-template-columns:1fr!important} }
+@media (prefers-reduced-motion:reduce){ .film-scan{animation:none;top:50%} }
+
+/* DEMO finale */
+#demo{min-height:100svh;display:flex;align-items:center;background:radial-gradient(70% 60% at 50% 30%,rgba(168,255,53,.06),transparent 70%),var(--void-2)}
+.demo-stage{max-width:var(--maxw);margin:0 auto;width:100%;text-align:center}
+.live-dot{display:inline-flex;align-items:center;gap:.5rem;color:var(--reject);font:600 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.live-dot i{width:9px;height:9px;border-radius:50%;background:var(--reject);animation:prePulse 1.3s ease-in-out infinite}
+.demo-h{font-family:var(--serif);font-weight:600;font-size:clamp(2.6rem,8vw,5.4rem);letter-spacing:-.03em;line-height:.95;margin:1.2rem 0}
+.demo-h b{color:var(--lime-bright)}
+.tabbar{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin:1.6rem 0}
+.tabbar .t{font:600 .72rem/1 var(--mono);letter-spacing:.04em;color:var(--ink-2);border:1px solid var(--line);border-radius:999px;padding:.55rem .9rem;background:var(--card)}
+.tabbar .t.on{color:var(--void);background:var(--lime-bright);border-color:var(--lime-bright)}
+.runbook{display:inline-grid;gap:.6rem;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.3rem 1.6rem;margin-top:.6rem;max-width:640px}
+.runbook .r{display:flex;gap:.9rem;align-items:baseline;font-size:.95rem;color:var(--ink-2)}
+.runbook .r b{font-family:var(--mono);color:var(--lime-bright);font-size:.78rem}
+
+/* demo launch CTA */
+.demo-cta{margin-top:2rem}
+.launch{display:inline-flex;align-items:center;gap:.7rem;font:600 .92rem/1 var(--sans);color:var(--void);
+  background:var(--lime-bright);border:1px solid var(--lime-bright);border-radius:999px;padding:1rem 1.7rem;cursor:pointer;
+  box-shadow:0 0 30px -6px var(--glow);transition:transform .35s var(--eout),box-shadow .3s}
+.launch .dot{width:9px;height:9px;border-radius:50%;background:var(--void);animation:prePulse 1.3s ease-in-out infinite}
+.launch .ar{font-size:1.15rem;transition:transform .3s var(--eout)}
+.launch:hover{box-shadow:0 0 46px -4px var(--glow)} .launch:hover .ar{transform:translateX(5px)}
+.launch:active{transform:scale(.97)}
+
+/* footer / team */
+.footer{margin-top:3.5rem;border-top:1px solid var(--line);padding-top:2.4rem}
+.team{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;text-align:left}
+.member{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.1rem}
+.member .nm{font-family:var(--serif);font-weight:600;font-size:.95rem}
+.member .ro{font:500 .66rem/1.4 var(--mono);color:var(--lime-bright);margin-top:.4rem;text-transform:uppercase;letter-spacing:.02em}
+.foot-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem;align-items:center;margin-top:2rem;color:var(--ink-3);font:500 .8rem/1.5 var(--mono)}
+.foot-meta a{color:var(--data)}
+.foot-meta .ie{display:flex;align-items:center;gap:.5rem}
+.foot-meta .ie img{height:15px;filter:brightness(0) invert(1);opacity:.7}
+
+/* responsive */
+@media (max-width:1024px){ .rail{display:none} .mosaic{grid-template-columns:repeat(5,1fr)} }
+@media (max-width:860px){
+  .split2,.split2.viz-r,.split2.viz-l{grid-template-columns:1fr;gap:1.6rem}
+  .kpis,.pillars,.rig,.plates{grid-template-columns:1fr 1fr}
+  .team{grid-template-columns:1fr 1fr}
+  .mosaic{grid-template-columns:repeat(4,1fr)}
+  section{padding:64px 22px}
+}
+@media (max-width:520px){
+  .kpis,.rig,.plates,.team,.notes-board{grid-template-columns:1fr}
+  .mosaic{grid-template-columns:repeat(3,1fr)}
+  .hero-tele{flex-direction:column;align-items:flex-start}
+}
+
+/* no-js / reduced motion: everything visible */
+.no-js .reveal{opacity:1!important;transform:none!important;filter:none!important}
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1!important;transform:none!important;filter:none!important;transition:none!important}
+  .scrollcue .ln,.live-dot i,.pre-dot,.hero-scan{animation:none!important}
+  .hero-scan,.scansweep,.cursor,.cursor-ring{display:none!important}
+  #hero .orchard{transform:scale(1.06)}
+}
+</style>
+</head>
+<body>
+<div class="bg-fallback"></div>
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<div class="grain"></div>
+
+<!-- PRELOADER -->
+<div id="preloader"><div class="pre-inner">
+  <div class="pre-reticle"><span class="pre-dot"></span></div>
+  <div class="pre-word">Fresh<b>Guard</b></div>
+  <div class="pre-bar"><div class="pre-fill" id="preFill"></div></div>
+  <div class="pre-status" id="preStatus">Calibrating the lens · 0%</div>
+</div></div>
+
+<!-- CHROME -->
+<a class="wordmark" id="toTop"><span class="ap"></span>Fresh<b>Guard</b></a>
+<div class="topbar">
+  <button class="pill" id="presentBtn" title="Toggle presenter mode (P)">Present</button>
+</div>
+<nav class="rail" id="rail" aria-label="Chapters"></nav>
+<div class="progress" id="bar"></div>
+<div class="scansweep" id="scansweep"></div>
+<div class="cursor" id="cursor"></div><div class="cursor-ring" id="cursorRing"></div>
+
+<!-- chapter navigator -->
+<div class="chapnav" id="chapnav">
+  <button class="cn-btn prev" id="cnPrev" aria-label="Previous chapter">↑</button>
+  <button class="cn-btn next magnetic" id="cnNext" aria-label="Next chapter"><span class="cn-pre">Next</span><span class="cn-lab" id="cnLab">The problem</span><span class="cn-ar">→</span></button>
+</div>
+
+<!-- PRESENTER BAR -->
+<div class="pbar">
+  <div class="who"><b id="pWho">Marco Ortiz Togashi</b><span id="pRole">Intro</span></div>
+  <div class="tmr" id="pTimer">00:00</div>
+  <div class="nav">
+    <button id="pPrev">◀ Prev</button>
+    <button id="pReset">Reset</button>
+    <button id="pNext">Next ▶</button>
+  </div>
+</div>
+
+<main>
+
+<!-- 01 · HERO -->
+<section id="hero" data-chap="Reading freshness" data-speaker="Marco Ortiz Togashi" data-role="Intro · the instrument">
+  <div class="orchard" id="orchard"></div><div class="veil"></div>
+  <div class="hero-scan"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow reveal">IE University · Deep Learning Final Project</div>
+    <h1 class="hero-h1 reveal r2">Fresh<b>Guard</b></h1>
+    <p class="hero-sub reveal r3">A camera that <em>reads freshness</em> and turns it into a price.</p>
+    <p class="hero-desc reveal r4">Point a phone at loose produce. A two-stage computer-vision pipeline grades it in real time, a forecaster predicts next week's spoilage, and every verdict becomes a markdown and a reorder signal. One FastAPI service, running on hardware stores already own.</p>
+    <div class="hero-meta reveal r5">
+      <span class="arch">ANN · CNN · RNN · all three, on purpose</span>
+    </div>
+  </div>
+  <div class="hero-tele">
+    <div class="t" id="heroTele">FRAME 0001 · reading…<br><b>spectral lab</b> · lab/spectral</div>
+    <div class="scrollcue"><span>Scroll to read</span><span class="ln"></span></div>
+  </div>
+</section>
+
+<!-- 02 · PROBLEM -->
+<section class="solid" data-chap="The problem" data-speaker="Sebastião Clemente" data-role="The business pain">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">02</span> The problem <span class="own">Sebastião</span></div>
+    <div class="split2 top">
+      <div class="stack">
+        <h2 class="title kin reveal">An apple with no expiry date.</h2>
+        <p class="lead reveal r2">Supermarkets lose <span class="hi">4–6% of produce revenue</span> to shrink every year. Most of it is not spoilage you could never prevent. It is margin that walked out the back door because the markdown decision arrived a day too late.</p>
+        <p class="body reveal r3">An apple graded "sell soon" on Tuesday is marked down and sold. The same apple found Wednesday, past the window, is a total loss. The fruit barely changed. The clock did. And the hardest data point in the store is this: <b>loose produce carries no printed expiry date.</b> No barcode, no lot number. The only signal of how close it is to the end of its life is how it looks.</p>
+      </div>
+      <div class="stack reveal r2">
+        <div class="metric-row">
+          <div><div class="metric"><span data-count="6" data-suffix="%" data-prefix="4–">4–6%</span></div><small>of produce revenue lost to shrink, yearly</small></div>
+        </div>
+        <div class="box info"><b>Spain's Law 1/2025</b> now legally requires retailers to discount or donate produce nearing end of life, not bin it. A margin nice-to-have became a compliance obligation.</div>
+        <div class="box good"><b>The catch.</b> The law applies to all produce, but loose produce is exactly the category with no date to drive compliance. Visual condition is the only available signal, and that is precisely what a CNN reads.</div>
+        <div class="telem">
+          <span class="tchip"><b>NO_SKU</b> · no barcode</span>
+          <span class="tchip"><b>NO_EXPIRY</b> · no date code</span>
+          <span class="tchip">window <b class="c">1 day</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 03 · DATA -->
+<section class="solid" data-chap="The data" data-speaker="Sebastião Clemente" data-role="Data & preprocessing">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">03</span> Teaching it to see <span class="own">Sebastião</span></div>
+    <div class="split2 viz-l top">
+      <div class="stack">
+        <p class="kicker reveal">27,700 images, one locked preprocessing contract, and a finding we did not expect.</p>
+        <h2 class="title reveal">23,537 examples of fresh and rotten.</h2>
+        <p class="body reveal r2">FreshGuard learns from the Kaggle "Fruit &amp; Vegetable Disease" dataset: ~27,700 images across <b>20 balanced classes</b>, ten produce types each split fresh and rotten. We hold out 15% for an honest test, leaving <b>23,537 train / 4,140 test</b>. The interesting part is not the size. It is two decisions about how to feed it.</p>
+        <div class="box bad reveal r3"><b>Negative finding.</b> We expected aggressive augmentation to help. It backfired: the from-scratch CNN collapsed to <b>~29%</b>. Rot is a fine-grained signal of colour and texture, and violent augmentation erases exactly the cue the model needs. We kept augmentation moderate and pushed robustness to inference instead.</div>
+        <div class="box good reveal r4"><b>The preprocessing contract.</b> Every image is locked through the same <span class="cy">mobilenet_v2.preprocess_input</span> ([-1, 1]) at train and serve. Train/serve skew is the classic invisible ML bug, a model that looks great offline and quietly rots in production. We designed it out from day one.</div>
+        <div class="telem reveal r4">
+          <span class="tchip"><b>23,537</b> train · <b>4,140</b> test</span>
+          <span class="tchip">20 classes · <b>85/15</b></span>
+          <span class="tchip">aggressive aug → <b>~29%</b></span>
+        </div>
+      </div>
+      <div class="stack reveal r2">
+        <div class="mosaic" id="mosaic"></div>
+        <p class="note">10 produce × {fresh, rotten}. Apple · banana · orange · carrot · tomato · potato · cucumber · bell pepper · mango · strawberry.</p>
+        <div class="plates">
+          <div class="plate"><img loading="lazy" src="docs/figures/02_class_distribution.png" alt="class distribution"><span class="lab">balance</span></div>
+          <div class="plate"><img loading="lazy" src="docs/figures/06_augmentation.png" alt="augmentation"><span class="lab">augment</span></div>
+          <div class="plate"><img loading="lazy" src="docs/figures/05_preprocessing.png" alt="preprocessing"><span class="lab">preprocess</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 04 · ABLATION -->
+<section class="solid" data-chap="The ablation" data-speaker="Yaxin Wu" data-role="Core model · the bake-off">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">04</span> Three brains, one verdict <span class="own">Yaxin</span></div>
+    <p class="kicker reveal">Three architectures, one controlled experiment, a 3× accuracy jump on 5.5× fewer parameters.</p>
+    <h2 class="title reveal">We didn't pick the model. We ran the bake-off.</h2>
+    <div class="split2 viz-r top" style="margin-top:1.6rem">
+      <div class="stack">
+        <p class="body reveal r2">The same data and task went to three architectures of rising structural cleverness. The result is one of the cleanest stories in applied deep learning, and it runs against our own intuition about size.</p>
+        <p class="body reveal r2"><b>The ANN flattens</b> each image into a vector before its first layer, and that single act is fatal: a bruise three rows up becomes two unrelated numbers in a list of thousands. <b>Convolution fixes the geometry</b>, sliding shared filters so the model sees local patches everywhere. <b>Transfer learning wins outright</b> by importing a MobileNetV2 backbone pretrained on ImageNet's 1.4M images, then learning only the last mile.</p>
+        <div class="box good reveal r3"><b>The model with the most parameters lost by the widest margin.</b> Capacity was never the bottleneck. The right inductive bias was.</div>
+        <div class="telem reveal r3">
+          <span class="tchip">ANN <b>31.9%</b> · 14.3M</span>
+          <span class="tchip">CNN <b>75.0%</b> · 8.5M</span>
+          <span class="tchip">MobileNetV2 <b>95.8%</b> · 2.6M</span>
+        </div>
+      </div>
+      <div class="viz-frame reveal r2">
+        <span class="badge">live · scroll</span>
+        <canvas id="cv-ablation" class="viz" height="280"></canvas>
+        <p class="cap">Accuracy races to value; the param chip morphs down (14.3M → 2.6M). More accurate <em>and</em> smaller.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 · FINETUNE -->
+<section class="solid" data-chap="Fine-tuning" data-speaker="Yaxin Wu" data-role="Two-phase transfer">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">05</span> Nudge, don't wreck <span class="own">Yaxin</span></div>
+    <div class="split2 viz-l top">
+      <div class="stack">
+        <p class="kicker reveal">Freeze first to set the head, then unfreeze the top with a 100× smaller learning rate.</p>
+        <h2 class="title reveal">Borrow the features, then nudge them.</h2>
+        <p class="body reveal r2">A fresh classification head fires large, noisy gradients in its first steps. Leave the powerful backbone trainable at that moment and those gradients tear apart the ImageNet features you imported. So we fine-tune in two deliberate phases.</p>
+        <div class="box cy reveal r3"><span class="coursechip">Part 2 · transfer learning + fine-tuning</span> This is the recipe from class, to the letter: freeze the ImageNet backbone, attach a GlobalAveragePooling → Dense → Dropout → Dense(softmax) head, then unfreeze the layers past a cutoff and fine-tune. We swapped ResNet50 for the lighter MobileNetV2 and dropped the fine-tune LR 100×.</div>
+        <div class="box cy reveal r3"><span class="coursechip">Part 1 · Functional API</span> <b>Built un-nested on purpose.</b> The model is <span class="cy">Model(base.input, out)</span>, the Functional API from class, not a nested Sequential, so the last conv layer <span class="cy">out_relu</span> stays addressable. That single choice is what makes Grad-CAM possible two chapters from now.</div>
+        <p class="note reveal r3">The callbacks from Part 1: EarlyStopping (patience 3, restore best) · ModelCheckpoint (best val_acc) · ReduceLROnPlateau (×0.3, min 1e-6) · TensorBoard. Validation stayed below training throughout, with no overfitting.</p>
+      </div>
+      <div class="stack reveal r2">
+        <div class="phases">
+          <div class="phase" id="ph1"><div class="ic">🔒</div><div class="tt"><b>Phase 1 · train the head</b><span>Backbone frozen · GAP → Dropout → Dense256 → Dense20 · 5 epochs</span></div><span class="lr">LR 1e-3</span></div>
+          <div class="phase open" id="ph2"><div class="ic">🔓</div><div class="tt"><b>Phase 2 · fine-tune the top</b><span>Unfreeze top 30 layers · early layers stay frozen · 4 epochs</span></div><span class="lr">LR 1e-5</span></div>
+        </div>
+        <div class="plate"><img loading="lazy" src="docs/figures/curves_mobilenetv2_tl.png" alt="MobileNetV2 training curves"><span class="lab">val ≤ train · no overfit</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 06 · EVALUATION -->
+<section class="solid" data-chap="Evaluation" data-speaker="Bassem El Halawani" data-role="Metrics, honestly">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">06</span> The decision that matters <span class="own">Bassem</span></div>
+    <p class="kicker reveal">Near-perfect on the in-store call, and candid about the one class it finds hard.</p>
+    <div class="split2 viz-r top" style="margin-top:1.2rem">
+      <div class="stack">
+        <h2 class="title reveal">0.994 on fresh versus rotten.</h2>
+        <p class="body reveal r2">A single accuracy number hides sins, so we evaluated on the dimension a store actually cares about. On the binary <b>fresh-vs-rotten</b> decision, the model scores a <b>ROC-AUC of 0.9938</b>. That value, this close to 1.0, means the rotten signal and the fresh signal almost never overlap. It is the decision behind every price action in the store.</p>
+        <p class="body reveal r2">The 20×20 confusion matrix tells the reassuring half: it is diagonal-dominant, and the errors that remain are <b>intra-produce-type</b> (sell-soon apple vs fresh apple), not across the fresh/rotten boundary. The model rarely makes the expensive mistake of calling rotten produce fresh.</p>
+        <div class="box bad reveal r3"><b>Named out loud.</b> The weakest class is rotten bell pepper at <b>recall 0.60</b>: peppers wrinkle rather than discolour, so "rotten" is visually subtler. We feature it, not hide it. Fresh mango and fresh strawberry reach recall 1.0.</div>
+        <div class="telem reveal r3">
+          <span class="tchip">AUC <b>0.9938</b></span>
+          <span class="tchip">weakest <b>0.60</b> bellpepper</span>
+          <span class="tchip">errors stay <b class="c">intra-type</b></span>
+        </div>
+        <div class="reveal r3" style="margin-top:.4rem"><span class="coursechip">Part 2 · evaluation toolkit</span> <span class="note">Measured with the confusion_matrix, classification_report and ROC-AUC tooling from class.</span></div>
+      </div>
+      <div class="stack">
+        <div class="viz-frame reveal r2"><span class="badge">hover cells</span>
+          <canvas id="cv-confusion" class="viz" height="300"></canvas>
+          <p class="cap">20×20 confusion. Lime diagonal = correct; coral = error, clustered inside the cyan produce-family boxes.</p>
+        </div>
+        <div class="viz-frame reveal r3"><span class="badge">draws on scroll</span>
+          <canvas id="cv-roc" class="viz" height="220"></canvas>
+          <p class="cap">ROC traces to AUC 0.994 against the random-chance diagonal.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 · GRAD-CAM -->
+<section class="solid" data-chap="Grad-CAM" data-speaker="Bassem El Halawani" data-role="Explainability">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">07</span> Show your work <span class="own">Bassem</span></div>
+    <div class="split2 viz-l top">
+      <div class="stack">
+        <p class="kicker reveal">A heatmap that lands on the actual bruise, not the background, at zero extra cost.</p>
+        <h2 class="title reveal">A model that points at what it saw.</h2>
+        <p class="body reveal r2">A model that is right for the wrong reasons is a liability under a food-waste law. Grad-CAM answers "where did it look?" by turning the network's own gradients into a heatmap. Bright regions are the pixels that pushed the verdict. When that brightness lands on a brown patch, staff trust the call and an auditor sees the evidence.</p>
+        <div class="math reveal r3" id="gradMath">
+          <span class="ln">1 · backprop class score → last conv <b>out_relu</b></span>
+          <span class="ln">2 · pooled_grads = mean(grads over H,W)</span>
+          <span class="ln">3 · heatmap = <b>ReLU(Σ feature_maps × pooled_grads)</b></span>
+          <span class="ln">4 · normalise [0,1] → overlay on fruit</span>
+        </div>
+        <div class="box good reveal r4"><b>Essentially free.</b> It reuses activations and gradients from a normal forward/backward pass, so it adds ~0 inference cost. That is what makes the auditability Law 1/2025 implies cheap enough to run on every flagged item.</div>
+      </div>
+      <div class="stack reveal r2">
+        <div class="plate"><img loading="lazy" src="docs/figures/gradcam_gallery.png" alt="Grad-CAM gallery"><span class="lab">bright = drove the verdict</span></div>
+        <p class="note">The heatmap is computed from the last convolutional layer the un-nested model exposed in chapter 05. Explainability is not a second model auditing the first; it is the same model, made to point.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 · DECISION -->
+<section class="solid" data-chap="The decision" data-speaker="Bassem El Halawani" data-role="Softmax → shelf edge">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">08</span> From softmax to shelf-edge <span class="own">Bassem</span></div>
+    <p class="kicker reveal">Probabilities become a price, with a built-in "I don't know."</p>
+    <div class="split2 viz-r top" style="margin-top:1.2rem">
+      <div class="stack">
+        <h2 class="title reveal">It is allowed to abstain.</h2>
+        <p class="body reveal r2">We collapse 20 numbers into the one that matters: <span class="cy">rotten_prob</span>, the probability mass summed over all rotten classes. A sell-soon band of (0.40, 0.65) sorts the item, which flows straight to a markdown. And below <b>0.70 confidence the model does not guess</b>: it abstains to a review tier and hands the item to a human.</p>
+        <div class="box info reveal r3"><b>Abstention is a feature.</b> Low-confidence crops route to a review queue, a human relabels them, and they fold into the next training run. The model improves on its own weak spots: safety today, a self-improving loop over time.</div>
+        <p class="note reveal r3">Also reported: top-3 classes and a normalised entropy (0 certain → 1 uniform) as an out-of-distribution alarm.</p>
+      </div>
+      <div class="viz-frame reveal r2"><span class="badge">drag me</span>
+        <div class="dm" style="padding:.4rem">
+          <div class="dm-bar"><div class="needle" id="dmNeedle"></div>
+            <div class="lbls"><span style="left:20%">fresh</span><span style="left:52%">sell</span><span style="left:82%">reject</span></div>
+          </div>
+          <input type="range" min="0" max="100" value="22" class="dm-slider" id="dmRange" aria-label="rotten probability">
+          <div class="dm-out">
+            <div><div class="note">rotten_prob = <b id="dmProb" style="color:var(--lime-bright)">0.22</b> · conf <b id="dmConf" style="color:var(--data)">0.91</b></div>
+              <div class="dm-verdict" id="dmVerdict">FRESH</div></div>
+            <div class="shelf" id="dmShelf">full price</div>
+          </div>
+          <p class="note">Push toward 0.65 for reject, or drop confidence under 0.70 (drag near the band edges) to trigger the human-review gate.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 09 · ROBUSTNESS -->
+<section class="solid" data-chap="Robustness" data-speaker="Yaxin Wu" data-role="Inference-time defenses">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">09</span> Five tricks, zero retraining <span class="own">Yaxin</span></div>
+    <p class="kicker reveal">Each defense fixes a specific way a real store breaks a clean model.</p>
+    <h2 class="title reveal narrow">Robustness lives at inference, not in the weights.</h2>
+    <div class="rig" style="margin-top:1.8rem">
+      <div class="station reveal r2"><div class="n">A</div><h4>White balance</h4><p>Gray-world neutralises warm aisle lighting so a fresh apple stops drifting toward "orange." Clip 0.7–1.5: correct the cast, don't invent one.</p></div>
+      <div class="station reveal r2"><div class="n">B</div><h4>Test-time aug</h4><p>Classify the crop and its mirror, average the softmaxes. One odd viewpoint can't sway the verdict.</p></div>
+      <div class="station reveal r3"><div class="n">C</div><h4>Saliency crop</h4><p>Lock onto the most colour-saturated blob so it grades the strawberry, not the grey table beneath it.</p></div>
+      <div class="station reveal r3"><div class="n">D</div><h4>Majority vote</h4><p>15-frame softmax history per ByteTrack ID (SMOOTH_WINDOW=15). A glare or motion-blur frame can't flip the call.</p></div>
+      <div class="station reveal r4"><div class="n">E</div><h4>HSV severity</h4><p>Classic CV, not the net: dark v&lt;70 or brown h&lt;30,s&gt;60,v&lt;140 → rot_area_fraction → the markdown depth. Auditable by design.</p></div>
+    </div>
+    <div class="box good reveal r4" style="margin-top:1.4rem"><b>Severity &gt; 0.25 is the −40% trigger.</b> The HSV decay map ties straight back to the decision logic: a transparent, classic-CV number, not a neural guess, sets how deep the markdown goes.</div>
+  </div>
+</section>
+
+<!-- 10 · DETECT / TRACK -->
+<section class="solid" data-chap="Detect &amp; track" data-speaker="Yaxin Wu" data-role="YOLO + ByteTrack">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">10</span> Many items, counted once <span class="own">Yaxin</span></div>
+    <div class="split2 viz-r top">
+      <div class="stack">
+        <p class="kicker reveal">Detection and tracking so each item is graded once and voted over time.</p>
+        <h2 class="title reveal">Find it, follow it, then decide.</h2>
+        <p class="body reveal r2">Finding produce and grading produce are different jobs. <b>YOLOv8n</b> (pretrained on COCO) detects; <b>ByteTrack</b> assigns each physical item a stable ID across frames, so the system accumulates evidence over time and counts each apple exactly once instead of re-grading it thirty times a second.</p>
+        <div class="box cy reveal r3"><b>Honest gap, handled gracefully.</b> COCO only knows 4 of our 10 types (banana, apple, orange, carrot). The other six fall back to a center-crop mode: no bounding box, but still graded and explained with Grad-CAM. Roadmap: fine-tune YOLO on the missing six.</div>
+        <div class="telem reveal r3">
+          <span class="tchip">COCO_FRUIT <b>{46,47,49,51}</b></span>
+          <span class="tchip">conf <b>0.25</b> · bytetrack</span>
+          <span class="tchip">vote → <b class="c">count once</b></span>
+        </div>
+      </div>
+      <div class="viz-frame reveal r2"><span class="badge">conveyor</span>
+        <div class="conveyor" id="conveyor"><div class="scanline"></div><div class="belt"></div></div>
+        <p class="cap">Items drift under the aperture; a stable ID per item accumulates a 15-frame vote, then stamps one verdict and increments the count once.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 11 · FORECAST -->
+<section class="solid" data-chap="Forecasting" data-speaker="Jorge Vildoso" data-role="The LSTM">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">11</span> Reading next week <span class="own">Jorge</span></div>
+    <div class="split2 viz-l top">
+      <div class="stack">
+        <p class="kicker reveal">A spoilage grade is a verdict on today. A forecast is a plan for next week.</p>
+        <h2 class="title reveal">28 days in, 7 days out.</h2>
+        <p class="body reveal r2">The vision model answers "is this apple fresh now?" A manager needs more: how much will rot next week, so they can order the right amount and staff the markdown surge before it arrives. A compact <span class="cy">LSTM(64) → Dense(7)</span> reads the last 28 days of flagged-item counts and projects the next 7 in one shot.</p>
+        <p class="body reveal r3"><b>Feature engineering is the whole game.</b> Each day carries 7 features, six of them calendar. Day-of-week and day-of-year are encoded as <b>sin/cos pairs</b> so Sunday and Monday sit next to each other on a circle, not six apart on a line. The model reads the calendar instead of fighting it.</p>
+        <div class="box good reveal r4"><b>Leakage-free.</b> Every calendar feature is known in advance, exactly like exogenous regressors in SARIMAX or Prophet. Feeding tomorrow's day-of-week into today's prediction is not cheating: the calendar for tomorrow is already on the wall.</div>
+        <div class="box cy reveal r4"><span class="coursechip">Part 5 · RNN time-series</span> The same recipe as Conchita's RNN time-series notebook, extended: a <span class="cy">MinMaxScaler</span> fit on the training split only, fixed-length windows fed to an LSTM, predictions returned through <span class="cy">inverse_transform</span>. We made it multivariate with the 6 calendar features and forecast all 7 days in one shot.</div>
+      </div>
+      <div class="stack">
+        <div class="viz-frame reveal r2"><span class="badge">cyclical</span>
+          <canvas id="cv-cal" class="viz" height="130"></canvas>
+          <p class="cap">sin/cos encoding: the 7-day cycle is continuous, no fake jump from Sunday to Monday.</p>
+        </div>
+        <div class="telem reveal r3">
+          <span class="tchip">window <b>28</b> → horizon <b>7</b></span>
+          <span class="tchip">7 features · <b class="c">6 calendar</b></span>
+          <span class="tchip">holiday <b>±1d</b> · promo <b>≥27</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · NEGATIVE RESULT -->
+<section class="solid" data-chap="The comeback" data-speaker="Jorge Vildoso" data-role="Negative result · noise floor">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">12</span> When the model lost <span class="own">Jorge</span></div>
+    <p class="kicker reveal">Version one lost to a one-line baseline. That was the most useful day of the project.</p>
+    <div class="split2 viz-r top" style="margin-top:1.2rem">
+      <div class="stack">
+        <h2 class="title reveal">A failure, a diagnosis, a near-optimal fix.</h2>
+        <p class="body reveal r2">The first LSTM took only the count series and <b>lost to a trivial naive baseline by 6.8% MAE.</b> A recurrent network beaten by one line of code that copies last week. The instinct is to hide that. The correct move is to interrogate it.</p>
+        <p class="body reveal r3">The naive baseline copies last week's matching weekday, so it <b>cannot anticipate a calendar-keyed shock</b>, a holiday surge or end-of-month markdown block. The count-only LSTM was blind to it too, because nobody told it what day it was. The fix was not a bigger network. It was the six calendar features: input <span class="cy">(28,1) → (28,7)</span>.</p>
+        <div class="box good reveal r4"><b>Within 12% of the ceiling.</b> The data injects N(0, σ=4) noise. A perfect predictor still carries one noise draw: MAE ≈ 4·√(2/π) ≈ <b>3.19</b>, irreducible. Our 3.59 sits 0.40 above that floor, under one item a day. The right question is not "did you beat the baseline" but "how close to optimal." Very.</p></div>
+        <div class="telem reveal r4">
+          <span class="tchip">MAE <b>3.59</b> vs 6.26 (<b class="c">+42.7%</b>)</span>
+          <span class="tchip">RMSE <b>+43.8%</b></span>
+          <span class="tchip">noise floor <b>3.19</b></span>
+        </div>
+      </div>
+      <div class="viz-frame reveal r2"><span class="badge">scroll the comeback</span>
+        <canvas id="cv-noise" class="viz" height="300"></canvas>
+        <p class="cap">Naive 6.26 → LSTM 3.59, with the irreducible noise floor at 3.19. The gap left is noise, not weakness.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 · FLYWHEEL -->
+<section class="solid" data-chap="The flywheel" data-speaker="Jorge Vildoso" data-role="Forecast → action → moat">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">13</span> The scanner trains the forecaster <span class="own">Jorge → Marco</span></div>
+    <p class="kicker reveal">A seven-number forecast is not a decision. The action plan is.</p>
+    <h2 class="title reveal narrow">Forecast → reorder. Scan → better forecast.</h2>
+    <div class="loop reveal r2" style="margin:1.8rem 0">
+      <div class="node"><b>Scan</b> live count</div><span class="ar">→</span>
+      <div class="node">append to history</div><span class="ar">→</span>
+      <div class="node"><b>LSTM</b> re-forecast</div><span class="ar">→</span>
+      <div class="node">action plan</div><span class="ar">→</span>
+      <div class="node">order / markdown</div><span class="ar">↺</span>
+    </div>
+    <div class="split2 top" style="margin-top:1.4rem">
+      <div class="stack">
+        <p class="body reveal r2"><b>compute_action_plan</b> turns the curve into one instruction. Week-over-week delta: down 5%+ → "order less, lighter week"; up 5%+ → "brace for markdowns, tighten ordering"; else "hold steady." The manager never sees a tensor.</p>
+        <div class="box good reveal r3"><b>The data flywheel.</b> Today's live scan is appended to history <em>before</em> the forecast runs, so the LSTM predicts on data minutes old. The scanner literally trains the forecaster. More scans → better forecast → better ordering → reason to keep scanning. A competitor starting cold cannot match months of a store's own history.</div>
+      </div>
+      <div class="viz-frame reveal r2"><span class="badge">illustrative</span>
+        <div class="calc">
+          <div class="row"><label>Stores</label><input type="range" id="cStores" min="1" max="1000" value="200"><span class="val" id="cStoresV">200</span></div>
+          <div class="row"><label>Loose units / store / day</label><input type="range" id="cUnits" min="500" max="6000" step="100" value="3000"><span class="val" id="cUnitsV">3,000</span></div>
+          <div class="row"><label>Sell-soon rescued (%)</label><input type="range" id="cRate" min="1" max="6" value="2"><span class="val" id="cRateV">2%</span></div>
+          <div class="calc-out"><span class="note">recovered margin / year<br>at 0.60 × €0.55 blended unit</span><span class="big" id="cOut">€0</span></div>
+          <div><span class="stamp">Illustrative · not measured</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 14 · BUSINESS STRATEGY -->
+<section class="solid" data-chap="Strategy" data-speaker="Marco Ortiz Togashi" data-role="Business strategy">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">14</span> Why it's a business, not a demo <span class="own">Marco</span></div>
+    <p class="kicker reveal">Land on compliance, expand on margin, defend with a data flywheel.</p>
+    <h2 class="title reveal">A live mandate, a data gap only AI can fill.</h2>
+
+    <div class="pillars reveal r2" style="margin-top:1.8rem">
+      <div class="pillar"><div class="n">01 · WHY NOW</div><h4>Compliance, not nice-to-have</h4><p>Law 1/2025 makes acting on end-of-life produce mandatory, and the obligation lands on loose produce, the one category with no date to drive it. Food-waste regulation is moving EU-wide, repeating the same blind spot.</p></div>
+      <div class="pillar"><div class="n">02 · THE WEDGE</div><h4>Hardware you already own</h4><p>A phone or webcam, no special sensor. The best model is 2.6M params. Explainable by construction (Grad-CAM), and self-improving via the review queue and forecast flywheel. Each is useful; together they're hard to copy.</p></div>
+      <div class="pillar"><div class="n">03 · THE BUYER</div><h4>Two stakeholders, one console</h4><p>The sustainability officer owns the Law 1/2025 audit trail; the ops lead owns produce margin. FreshGuard is the compliance system and the margin-recovery system in the same deployment.</p></div>
+    </div>
+
+    <div class="split2 top" style="margin-top:2rem">
+      <div class="stack">
+        <h3 class="reveal">Unit economics, conservative by construction</h3>
+        <p class="body reveal r2">We only credit value on <b>sell-soon</b> items marked down and sold, at <b>60% of retail</b>. Fresh would have sold anyway (zero incremental); reject is already lost (zero). We exclude the two largest buckets on purpose, so the math only ever counts genuinely saveable margin. The point is the leverage: even crediting only the saveable band, the recovered margin comfortably clears a per-store SaaS price, and every rescued unit is also a logged compliance event.</p>
+        <div class="telem reveal r3">
+          <span class="tchip">recovery <b>0.60</b></span>
+          <span class="tchip">~<b>€7.2k</b>/store/yr <span class="dim">illustrative</span></span>
+          <span class="tchip">~<b class="c">€7.2M</b>/yr · 1,000 stores</span>
+        </div>
+      </div>
+      <div class="stack reveal r2">
+        <h3>Market, illustratively sized</h3>
+        <div class="funnel">
+          <div class="fl t1"><div class="h"><b>TAM</b><span class="v">low €B / yr</span></div><p>Global grocery with loose produce. The recoverable-margin pool, of which FreshGuard captures a software slice.</p></div>
+          <div class="fl t2"><div class="h"><b>SAM</b><span class="v">low €100M / yr</span></div><p>Chains with loose-produce sections in compliance regions, where the buying trigger is live today.</p></div>
+          <div class="fl t3"><div class="h"><b>SOM</b><span class="v">€single–low-double-digit M ARR</span></div><p>A 24–36 month beachhead: Spanish and early EU chains, compliance-exposed and ready to pilot CV.</p></div>
+        </div>
+        <p class="note">All three layers illustrative, sized top-down to show the shape of the opportunity, not a measured number.</p>
+      </div>
+    </div>
+
+    <div class="box info reveal" style="margin-top:1.8rem"><b>The moat.</b> Classifiers commoditise; the moat is the compounding data flywheel (review-queue active learning + live forecast history, both keyed to each store's own conditions), explainability that functions as a regulatory barrier, and switching costs that cement once POS-integrated. A new entrant starts from generic accuracy. An incumbent deployment has months of this store's own edge cases baked in, and that gap widens every day it runs.</div>
+  </div>
+</section>
+
+<!-- 15 · LIMITS + STACK -->
+<section class="solid" data-chap="Honest limits" data-speaker="Marco Ortiz Togashi" data-role="Caveats · roadmap · stack">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">15</span> What we don't claim yet <span class="own">Marco</span></div>
+    <p class="kicker reveal">Maturity is credibility. The caveats are stated up front.</p>
+    <div class="split2 top" style="margin-top:1rem">
+      <div class="stack">
+        <h2 class="title reveal" style="font-size:clamp(1.6rem,3.6vw,2.6rem)">The honest lab board.</h2>
+        <div class="notes-board reveal r2">
+          <div class="snote"><b>Domain shift</b><p>Clean Kaggle data vs a real store's lighting and cameras. Needs a small per-store calibration set, the review queue is built for it.</p></div>
+          <div class="snote"><b>Throughput</b><p>One laptop CPU can't grade a fast belt. Batch frames or add an edge GPU / Jetson.</p></div>
+          <div class="snote"><b>POS integration</b><p>Today it recommends a markdown; applying it at the shelf label needs POS work, the step that becomes the switching cost.</p></div>
+          <div class="snote"><b>Projections</b><p>The € figures are illustrative, not measured. The pilot exists to replace them.</p></div>
+        </div>
+        <div class="roadmap reveal r3">
+          <span class="rstep"><span class="n">→</span> YOLO on the 6 missing types</span>
+          <span class="rstep"><span class="n">→</span> per-store calibration</span>
+          <span class="rstep"><span class="n">→</span> POS integration</span>
+          <span class="rstep"><span class="n">→</span> edge deployment</span>
+          <span class="rstep"><span class="n">→</span> real per-store history</span>
+        </div>
+      </div>
+      <div class="stack reveal r2">
+        <h3>The stack</h3>
+        <div class="stack-diag">
+          <span class="s">request</span><span class="ar" style="color:var(--lime)">→</span>
+          <span class="s"><b>FastAPI</b></span><span class="ar" style="color:var(--lime)">→</span>
+          <span class="s"><b>YOLOv8n</b>+ByteTrack</span><span class="ar" style="color:var(--lime)">→</span>
+          <span class="s"><b>MobileNetV2</b></span><span class="ar" style="color:var(--lime)">→</span>
+          <span class="s"><b>LSTM</b></span>
+        </div>
+        <p class="note">Plus Grad-CAM explainability, classic-CV robustness, and a vanilla-JS <b>6-tab ops console</b>: Live scan · Manager dashboard · Market prices · Review queue · Model evidence · Lab. No framework.</p>
+        <div class="plate"><img loading="lazy" src="docs/figures/roc_curve.png" alt="ROC curve"><span class="lab">evidence room</span></div>
+      </div>
+    </div>
+    <div class="reveal" style="margin-top:2.4rem">
+      <h3>Mapped to the syllabus</h3>
+      <div class="stack-diag" style="margin-top:.8rem">
+        <span class="s"><b>Part 1</b> · ANN, Functional API, callbacks, MinMaxScaler</span>
+        <span class="s"><b>Part 2</b> · CNN + transfer learning &amp; fine-tuning + Grad-CAM</span>
+        <span class="s"><b>Part 5</b> · RNN / LSTM time-series forecasting</span>
+        <span class="s" style="color:var(--ink-3)">Part 4 generative (autoencoders / GANs) · out of scope by design</span>
+      </div>
+      <p class="note" style="margin-top:.8rem">FreshGuard exercises every <b>predictive</b> architecture from the course, and deliberately stays predictive: generative AI is excluded by the project brief.</p>
+    </div>
+  </div>
+</section>
+
+<div class="beam"></div>
+
+<!-- 16 · CAMPAIGN -->
+<section class="solid" id="campaign" data-chap="The campaign" data-speaker="Marco Ortiz Togashi" data-role="Brand campaign">
+  <div class="wrap">
+    <div class="chapter-tag reveal"><span class="no">16</span> The campaign <span class="own">Marco</span></div>
+    <p class="kicker reveal">A 10-second spot, generated in code with real produce. One line, shelf-edge to social.</p>
+    <h2 class="title reveal">Read the fruit, not the date.</h2>
+
+    <div class="film reveal r2" id="film">
+      <button class="film-play" id="filmPlay" aria-label="Play / pause spot">❚❚</button>
+      <div class="film-frame" data-f="0"><div class="ff">
+        <div class="big anim">4–6% of produce.<br><b>Binned.</b> Every year.</div>
+        <div class="small anim">the cost of catching decay a day too late</div></div></div>
+      <div class="film-frame" data-f="1"><div class="ff">
+        <div class="film-produce anim"><img id="filmProduce" alt="produce being scanned" src="frontend/assets/produce/apple.jpg"><div class="film-scan"></div></div>
+        <div class="big anim">No label? <b>Read the fruit.</b></div></div></div>
+      <div class="film-frame" data-f="2"><div class="ff">
+        <div class="small anim">one camera · one verdict</div>
+        <div class="film-verdicts anim">
+          <div class="film-card"><div class="pic"><img src="frontend/assets/produce/strawberry.jpg" alt="strawberry"></div><span class="chip fresh"><i></i>Fresh</span></div>
+          <div class="film-card"><div class="pic"><img src="frontend/assets/produce/tomato.jpg" alt="tomato"></div><span class="chip sell"><i></i>Sell soon</span></div>
+          <div class="film-card"><div class="pic"><img src="frontend/assets/produce/cucumber.jpg" alt="cucumber"></div><span class="chip reject"><i></i>Reject</span></div>
+        </div>
+        <div class="big anim" style="font-size:clamp(1.3rem,3.2vw,2.1rem)">Graded in <b>real time.</b></div></div></div>
+      <div class="film-frame" data-f="3"><div class="ff">
+        <div class="big anim" style="font-size:clamp(3rem,10vw,5.4rem)"><b>−40%</b></div>
+        <div class="big anim" style="font-size:clamp(1.3rem,3.4vw,2.1rem)">Sold, not binned.</div></div></div>
+      <div class="film-frame" data-f="4"><div class="ff">
+        <div class="big anim">Catch decay <b>a day earlier.</b></div>
+        <div class="anim film-logo">Fresh<span>Guard</span></div>
+        <div class="small anim">Point. Read. Decide.</div></div></div>
+      <div class="film-bar"><div class="film-fill" id="filmFill"></div></div>
+    </div>
+    <p class="note reveal r3" style="text-align:center;margin:.9rem auto 0;max-width:62ch">Auto-plays in view, built entirely in code with your dataset's produce photos (no video file). Screen-record it for a shareable spot, or drop a real clip into a &lt;video&gt; here.</p>
+
+    <div class="campaign-lines reveal r3" style="margin-top:1.8rem;grid-template-columns:1fr 1fr">
+      <div class="cl"><span class="q">"Read the fruit, not the date."</span><span class="ch">hero line</span></div>
+      <div class="cl"><span class="q">"Every bin is a missed markdown."</span><span class="ch">retail · B2B</span></div>
+      <div class="cl"><span class="q">"A day earlier. That's the whole product."</span><span class="ch">social</span></div>
+      <div class="cl"><span class="q">"Waste less. Recover more. Comply by default."</span><span class="ch">sustainability</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 · LIVE DEMO (FINALE) -->
+<section id="demo" data-chap="Live demo" data-speaker="Team FreshGuard" data-role="Finale · point. read. decide.">
+  <div class="demo-stage">
+    <p class="live-dot reveal"><i></i>Live · point the lens at the room</p>
+    <h2 class="demo-h reveal r2">Point. Read. <b>Decide.</b></h2>
+    <p class="lead reveal r3" style="margin:0 auto;max-width:46ch">The instrument finally reads the room. Every concept above, firing at once, in the real 6-tab ops console.</p>
+    <div class="tabbar reveal r3">
+      <span class="t on">Live scan</span><span class="t">Manager</span><span class="t">Market</span><span class="t">Review</span><span class="t">Model</span><span class="t">Lab</span>
+    </div>
+    <div class="runbook reveal r4">
+      <div class="r"><b>01</b> Live scan: a fresh fruit, then a rotten one. Call the tier and the Grad-CAM patch.</div>
+      <div class="r"><b>02</b> Conveyor: the 15-frame majority vote holds steady as frames jitter.</div>
+      <div class="r"><b>03</b> Manager: the 7-day LSTM forecast and today's recovered €.</div>
+      <div class="r"><b>04</b> Review queue: abstentions waiting to be relabelled, the flywheel, live.</div>
+    </div>
+
+    <div class="demo-cta reveal r4">
+      <a class="launch magnetic" href="frontend/index.html" target="_blank" rel="noopener"><span class="dot"></span>Launch the ops console<span class="ar">→</span></a>
+      <p class="note" style="margin-top:.9rem">Opens the real 6-tab app. For the live camera + predictions, run it via FastAPI and it serves at <a href="http://localhost:8000" target="_blank" rel="noopener" style="color:var(--data)">localhost:8000</a>.</p>
+    </div>
+
+    <div class="footer reveal">
+      <div class="team">
+        <div class="member"><div class="nm">Marco Ortiz Togashi</div><div class="ro">Integration &amp; demo</div></div>
+        <div class="member"><div class="nm">Sebastião Clemente</div><div class="ro">Data &amp; preprocessing</div></div>
+        <div class="member"><div class="nm">Yaxin Wu</div><div class="ro">Core model &amp; ablation</div></div>
+        <div class="member"><div class="nm">Bassem El Halawani</div><div class="ro">Evaluation &amp; XAI</div></div>
+        <div class="member"><div class="nm">Jorge Vildoso</div><div class="ro">Forecasting &amp; dashboard</div></div>
+      </div>
+      <div class="foot-meta">
+        <a href="https://github.com/ma731/Deep-Learning-Computer-Vision" target="_blank" rel="noopener">github.com/ma731/Deep-Learning-Computer-Vision</a>
+        <div class="ie"><img src="frontend/assets/ie-logo.svg" alt="IE University" onerror="this.style.display='none'"><span>IE University · Deep Learning · 2026</span></div>
+        <a id="restart" style="cursor:pointer">↺ Restart the scan</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ LIBS (UMD globals, no build) ============ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+
+<script>
+"use strict";
+window.addEventListener('error',function(e){ window.__err=(window.__err||'')+(e.message||e.error)+' @L'+(e.lineno||'?')+'\n'; });
+(function(){
+/* ---------- guards ---------- */
+var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+var NOGL = location.search.indexOf('nogl')>=0;
+if(location.search.indexOf('static')>=0) REDUCE=true;
+var HAS_GSAP = (typeof gsap!=='undefined' && typeof ScrollTrigger!=='undefined');
+var HAS_LENIS = (typeof Lenis!=='undefined');
+var HAS_THREE = (typeof THREE!=='undefined');
+if(HAS_GSAP) gsap.registerPlugin(ScrollTrigger);
+
+/* ---------- palette ---------- */
+var C = { bg:'#0a0e0d', ink:'#eaf2ec', mut:'#7d8a82', grid:'#1a2420',
+  lime:'#a8ff35', cyan:'#43e5c0', reject:'#ff5c5c', sell:'#f5b73d', review:'#8fb8ff' };
+var clamp01=function(t){return t<0?0:t>1?1:t;};
+var lerp=function(a,b,t){return a+(b-a)*t;};
+var easeOut=function(t){return 1-Math.pow(1-t,3);};
+
+/* ============ PRELOADER ============ */
+var preFill=document.getElementById('preFill'), preStatus=document.getElementById('preStatus'), preloader=document.getElementById('preloader');
+(function(){
+  var dur=REDUCE?200:1300, start=performance.now(), finished=false;
+  function step(){ var p=clamp01((performance.now()-start)/dur), e=easeOut(p);
+    preFill.style.width=(e*100)+'%'; preStatus.textContent='Calibrating the lens · '+Math.round(e*100)+'%';
+    if(p<1 && !finished) requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+  function finish(){ if(finished) return; finished=true; preFill.style.width='100%';
+    preloader.classList.add('done'); try{ initReveals(); }catch(err){ window.__err=(window.__err||'')+'initReveals: '+err.message+'\n';
+      document.querySelectorAll('.reveal,.beam').forEach(function(el){el.classList.add('is-in');}); } }
+  setTimeout(finish, dur+60);
+})();
+
+/* ============ LENIS + GSAP ============ */
+var lenis=null;
+if(!REDUCE && HAS_LENIS && HAS_GSAP){
+  lenis=new Lenis({ duration:1.1, smoothWheel:true, smoothTouch:false });
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add(function(t){ lenis.raf(t*1000); });
+  gsap.ticker.lagSmoothing(0);
+}
+
+/* ============ MOSAIC (sample images) ============ */
+(function(){
+  var box=document.getElementById('mosaic'); if(!box) return;
+  var items=[['fresh_apple','frs','apple'],['rotten_banana','rot','banana'],['fresh_strawberry','frs','strawb'],['rotten_orange','rot','orange'],['fresh_mango','frs','mango'],
+             ['rotten_tomato','rot','tomato'],['fresh_carrot','frs','carrot'],['rotten_bellpepper','rot','pepper'],['fresh_cucumber','frs','cucumb'],['rotten_potato','rot','potato']];
+  items.forEach(function(it){
+    var cell=document.createElement('div'); cell.className='cell '+it[1];
+    var img=document.createElement('img'); img.loading='lazy';
+    img.src='docs/figures/gradcam/'+it[0]+'.jpg';
+    img.onerror=function(){
+      img.onerror=null; img.removeAttribute('src');
+      cell.style.background = it[1]==='frs' ? 'linear-gradient(135deg,#1a2a12,#0e1a0c)' : 'linear-gradient(135deg,#2a1212,#1a0c0c)';
+    };
+    var tg=document.createElement('span'); tg.className='tg'; tg.textContent=it[2];
+    cell.appendChild(img); cell.appendChild(tg); box.appendChild(cell);
+  });
+})();
+
+/* ============ WEBGL BACKGROUND POINT-CLOUD ============ */
+var bg=null;
+(function(){
+  var canvas=document.getElementById('bg-canvas');
+  if(REDUCE || NOGL || !HAS_THREE || !canvas) return;
+  var renderer;
+  try{ renderer=new THREE.WebGLRenderer({canvas:canvas, antialias:false, alpha:true, powerPreference:'high-performance'}); }
+  catch(e){ return; }
+  var DPR=Math.min(window.devicePixelRatio||1, 1.5); renderer.setPixelRatio(DPR);
+  document.documentElement.classList.add('webgl-on');
+
+  var scene=new THREE.Scene();
+  var camera=new THREE.PerspectiveCamera(55,1,0.1,100); camera.position.set(0,0,5);
+
+  var COUNT=6500;
+  var pos=new Float32Array(COUNT*3), tgt=new Float32Array(COUNT*3), scl=new Float32Array(COUNT), seed=new Float32Array(COUNT);
+  for(var i=0;i<COUNT;i++){ var i3=i*3;
+    pos[i3]=(Math.random()-0.5)*9; pos[i3+1]=(Math.random()-0.5)*6; pos[i3+2]=(Math.random()-0.5)*5;
+    var t=i/COUNT, ph=Math.acos(1-2*t), th=Math.PI*(1+Math.sqrt(5))*i, r=1.7;
+    tgt[i3]=r*Math.sin(ph)*Math.cos(th); tgt[i3+1]=r*Math.cos(ph)*0.92; tgt[i3+2]=r*Math.sin(ph)*Math.sin(th);
+    scl[i]=0.6+Math.random()*1.7; seed[i]=Math.random();
+  }
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('aTarget',new THREE.BufferAttribute(tgt,3));
+  geo.setAttribute('aScale',new THREE.BufferAttribute(scl,1));
+  geo.setAttribute('aSeed',new THREE.BufferAttribute(seed,1));
+
+  var VS=[
+    'uniform float uTime; uniform float uMorph; uniform float uSize; uniform vec2 uMouse; uniform float uPR;',
+    'attribute vec3 aTarget; attribute float aScale; attribute float aSeed; varying float vMix;',
+    'void main(){ float m=smoothstep(0.0,1.0,uMorph); vec3 p=mix(position,aTarget,m);',
+    ' float a=aSeed*6.2831; p+=vec3(sin(uTime*0.3+a),cos(uTime*0.24+a*1.7),sin(uTime*0.21+a*0.6))*0.16*(1.0-m*0.8);',
+    ' float depth=0.5+0.5*sin(aSeed*12.0); p.xy+=uMouse*0.22*depth;',
+    ' vec4 mv=modelViewMatrix*vec4(p,1.0); gl_Position=projectionMatrix*mv;',
+    ' gl_PointSize=uSize*aScale*uPR*(1.0/-mv.z); vMix=clamp(m*0.6+depth*0.4,0.0,1.0); }'
+  ].join('\n');
+  var FS=[
+    'precision mediump float; uniform vec3 uA; uniform vec3 uB; uniform float uOpacity; varying float vMix;',
+    'void main(){ vec2 uv=gl_PointCoord-0.5; float d=length(uv); if(d>0.5) discard;',
+    ' float al=smoothstep(0.5,0.0,d); al*=al; vec3 col=mix(uA,uB,vMix);',
+    ' gl_FragColor=vec4(col, al*uOpacity); }'
+  ].join('\n');
+
+  var mat=new THREE.ShaderMaterial({ vertexShader:VS, fragmentShader:FS, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+    uniforms:{ uTime:{value:0}, uMorph:{value:0}, uSize:{value:46}, uMouse:{value:new THREE.Vector2(0,0)}, uPR:{value:DPR},
+      uA:{value:new THREE.Color(0x43e5c0)}, uB:{value:new THREE.Color(0xa8ff35)}, uOpacity:{value:1} }});
+  var points=new THREE.Points(geo,mat); scene.add(points);
+
+  var mx={x:0,y:0,tx:0,ty:0};
+  window.addEventListener('mousemove',function(e){ mx.tx=(e.clientX/innerWidth)*2-1; mx.ty=-((e.clientY/innerHeight)*2-1); },{passive:true});
+
+  function resize(){ var w=canvas.clientWidth,h=canvas.clientHeight;
+    if(canvas.width!==Math.floor(w*DPR)||canvas.height!==Math.floor(h*DPR)){ renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); } }
+  var clock=new THREE.Clock();
+  bg={ morph:0, opacity:1, tintA:new THREE.Color(0x43e5c0), tintB:new THREE.Color(0xa8ff35),
+    tick:function(){ var dt=clock.getDelta(); mat.uniforms.uTime.value+=dt;
+      mx.x+=(mx.tx-mx.x)*0.04; mx.y+=(mx.ty-mx.y)*0.04; mat.uniforms.uMouse.value.set(mx.x,mx.y);
+      mat.uniforms.uMorph.value+=(bg.morph-mat.uniforms.uMorph.value)*0.06;
+      mat.uniforms.uOpacity.value+=(bg.opacity-mat.uniforms.uOpacity.value)*0.05;
+      mat.uniforms.uA.value.lerp(bg.tintA,0.03); mat.uniforms.uB.value.lerp(bg.tintB,0.03);
+      points.rotation.y+=dt*0.035; resize(); renderer.render(scene,camera); },
+    renderer:renderer };
+
+  var running=true, last=performance.now();
+  function loop(now){ if(!running) return; var dt=Math.min((now-last)/1000,0.05); last=now; bg.tick(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+  document.addEventListener('visibilitychange',function(){ if(document.hidden){running=false;} else {running=true;last=performance.now();requestAnimationFrame(loop);} });
+  canvas.addEventListener('webglcontextlost',function(e){ e.preventDefault(); running=false; document.documentElement.classList.remove('webgl-on'); });
+})();
+
+/* hero scroll: assemble cloud, then fade to ambient + recolor per chapter */
+if(bg && HAS_GSAP){
+  ScrollTrigger.create({ trigger:'#hero', start:'top top', end:'bottom top', scrub:true,
+    onUpdate:function(s){ bg.morph=s.progress; bg.opacity=lerp(1,0.16,s.progress); } });
+  // recolor by chapter zones
+  var tints=[ ['#data','#evaluation', 0x43e5c0,0x43e5c0], ['#robustness',null,0xa8ff35,0x84e32b] ];
+  // simpler: tint shifts at business section
+  ScrollTrigger.create({ trigger:'[data-chap="Strategy"]', start:'top center', end:'bottom center',
+    onToggle:function(s){ if(s.isActive){ bg.tintA=new THREE.Color(0xf5b73d); bg.tintB=new THREE.Color(0xa8ff35);} else { bg.tintA=new THREE.Color(0x43e5c0); bg.tintB=new THREE.Color(0xa8ff35);} } });
+}
+
+/* ============ REVEALS + KINETIC + COUNTERS ============ */
+function initReveals(){
+  if(!HAS_GSAP || REDUCE){
+    document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('is-in');});
+    document.querySelectorAll('.beam').forEach(function(el){el.classList.add('is-in');});
+    document.querySelectorAll('[data-count]').forEach(function(el){ setCount(el, +el.dataset.count); });
+    drawAllStatic();
+    buildRail(); initFilm(); return;
+  }
+  // beam reveal per group
+  document.querySelectorAll('section').forEach(function(sec){
+    var rev=sec.querySelectorAll('.reveal'); if(!rev.length) return;
+    ScrollTrigger.create({ trigger:sec, start:'top 78%', once:true, onEnter:function(){
+      rev.forEach(function(el){ el.classList.add('is-in'); }); } });
+  });
+  document.querySelectorAll('.beam').forEach(function(b){
+    ScrollTrigger.create({ trigger:b, start:'top 88%', once:true, onEnter:function(){ b.classList.add('is-in'); } });
+  });
+  // counters
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    var target=+el.dataset.count, suf=el.dataset.suffix||'', pre=el.dataset.prefix||'', o={v:0};
+    gsap.to(o,{v:target, ease:'power2.out', duration:1.6, scrollTrigger:{trigger:el,start:'top 85%',once:true},
+      onUpdate:function(){ el.textContent=pre+Math.round(o.v)+suf; }});
+  });
+  buildRail();
+  initVizScroll();
+  initFilm();
+  ScrollTrigger.refresh();
+  // reveal anything already in the first viewport (hero) so it shows on load
+  document.querySelectorAll('.reveal').forEach(function(el){ var r=el.getBoundingClientRect(); if(r.top < innerHeight*0.9) el.classList.add('is-in'); });
+}
+function setCount(el,v){ var suf=el.dataset.suffix||'',pre=el.dataset.prefix||''; el.textContent=pre+v+suf; }
+
+/* ============ CHAPTER RAIL + PRESENTER ============ */
+var SECTIONS=[].slice.call(document.querySelectorAll('section[data-chap]'));
+function buildRail(){
+  var rail=document.getElementById('rail');
+  SECTIONS.forEach(function(sec,i){
+    var a=document.createElement('a'); a.dataset.i=i;
+    a.innerHTML='<span class="lab">'+sec.dataset.chap+'</span><span class="tk"></span>';
+    a.addEventListener('click',function(){ goSection(i); });
+    rail.appendChild(a);
+    if(HAS_GSAP){ ScrollTrigger.create({ trigger:sec, start:'top center', end:'bottom center',
+      onToggle:function(s){ if(s.isActive) setActive(i); } }); }
+  });
+  // fallback active via IO if no gsap
+  if(!HAS_GSAP){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ setActive(SECTIONS.indexOf(e.target)); } }); },{rootMargin:'-45% 0px -45% 0px'});
+    SECTIONS.forEach(function(s){io.observe(s);});
+  }
+}
+var curSec=0;
+function setActive(i){ curSec=i;
+  document.querySelectorAll('#rail a').forEach(function(a,j){ a.classList.toggle('on',j===i); });
+  var sec=SECTIONS[i];
+  document.getElementById('pWho').textContent=sec.dataset.speaker||'Team FreshGuard';
+  document.getElementById('pRole').textContent=sec.dataset.role||'';
+  var cnLab=document.getElementById('cnLab'), cnPre=document.querySelector('#cnNext .cn-pre');
+  var nx=SECTIONS[i+1];
+  if(cnLab) cnLab.textContent = nx ? nx.dataset.chap : 'Restart the scan';
+  if(cnPre) cnPre.textContent = nx ? 'Next' : '↺';
+  var cn=document.getElementById('chapnav'); if(cn) cn.style.display = nx ? 'flex' : 'none';
+}
+function fireSweep(){ if(REDUCE) return; var s=document.getElementById('scansweep'); if(!s) return; s.classList.remove('go'); void s.offsetWidth; s.classList.add('go'); }
+function goSection(i){ i=Math.max(0,Math.min(SECTIONS.length-1,i)); fireSweep(); var el=SECTIONS[i];
+  if(lenis) lenis.scrollTo(el,{offset:0}); else el.scrollIntoView({behavior: REDUCE?'auto':'smooth'}); }
+
+/* progress bar */
+if(HAS_GSAP){ ScrollTrigger.create({ start:0, end:'max', onUpdate:function(s){ document.getElementById('bar').style.width=(s.progress*100)+'%'; } }); }
+else { window.addEventListener('scroll',function(){ var h=document.body.scrollHeight-innerHeight; document.getElementById('bar').style.width=(scrollY/h*100)+'%'; },{passive:true}); }
+
+/* presenter mode */
+var present=false, t0=null, tHandle=null, tEl=document.getElementById('pTimer');
+function togglePresent(){ present=!present; document.body.classList.toggle('present',present);
+  document.getElementById('presentBtn').classList.toggle('on',present);
+  if(present && t0===null){ t0=Date.now(); tHandle=setInterval(tick,500);} }
+function tick(){ if(t0===null) return; var s=Math.floor((Date.now()-t0)/1000),m=Math.floor(s/60); s=s%60;
+  tEl.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  tEl.className='tmr'+(m>=15?' over':(m>=12?' warn':'')); }
+document.getElementById('presentBtn').addEventListener('click',togglePresent);
+document.getElementById('pPrev').addEventListener('click',function(){ goSection(curSec-1); });
+document.getElementById('pNext').addEventListener('click',function(){ goSection(curSec+1); });
+document.getElementById('pReset').addEventListener('click',function(){ t0=Date.now(); tick(); });
+document.addEventListener('keydown',function(e){
+  if(e.key==='p'||e.key==='P'){ togglePresent(); }
+  else if(present && (e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')){ e.preventDefault(); goSection(curSec+1); }
+  else if(present && (e.key==='ArrowLeft'||e.key==='PageUp')){ e.preventDefault(); goSection(curSec-1); }
+});
+document.getElementById('toTop').addEventListener('click',function(){ goSection(0); });
+document.getElementById('restart').addEventListener('click',function(){ goSection(0); });
+
+/* chapter navigator buttons */
+(function(){
+  var nx=document.getElementById('cnNext'), pv=document.getElementById('cnPrev');
+  if(nx) nx.addEventListener('click',function(){ if(curSec>=SECTIONS.length-1) goSection(0); else goSection(curSec+1); });
+  if(pv) pv.addEventListener('click',function(){ goSection(curSec-1); });
+  if(nx && matchMedia('(hover:hover) and (pointer:fine)').matches){
+    nx.addEventListener('mousemove',function(e){ var r=nx.getBoundingClientRect();
+      nx.style.transform='translate('+((e.clientX-r.left-r.width/2)*0.25)+'px,'+((e.clientY-r.top-r.height/2)*0.3)+'px)'; });
+    nx.addEventListener('mouseleave',function(){ nx.style.transform=''; });
+  }
+})();
+
+/* custom cursor (desktop, motion on) */
+(function(){
+  if(REDUCE || !matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  var dot=document.getElementById('cursor'), ring=document.getElementById('cursorRing'); if(!dot||!ring) return;
+  var x=innerWidth/2,y=innerHeight/2,rx=x,ry=y;
+  addEventListener('mousemove',function(e){ x=e.clientX;y=e.clientY; dot.style.transform='translate('+x+'px,'+y+'px)'; },{passive:true});
+  (function loop(){ rx+=(x-rx)*0.18; ry+=(y-ry)*0.18; ring.style.transform='translate('+rx+'px,'+ry+'px)'; requestAnimationFrame(loop); })();
+  var sel='a,button,input[type=range],.magnetic,.cn-btn,.rail a,.tabbar .t,.mosaic .cell,.dm-slider';
+  addEventListener('mouseover',function(e){ if(e.target.closest(sel)) ring.classList.add('hot'); },{passive:true});
+  addEventListener('mouseout',function(e){ if(e.target.closest(sel)) ring.classList.remove('hot'); },{passive:true});
+})();
+
+/* ============ CANVAS VIZ KIT ============ */
+function setupCanvas(cv,h){ var dpr=Math.min(devicePixelRatio||1,2), w=cv.clientWidth; cv.width=w*dpr; cv.height=h*dpr;
+  cv.style.height=h+'px'; var ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx:ctx,w:w,h:h}; }
+function rr(c,x,y,w,h,r){ r=Math.min(r,h/2,w/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function mix(a,b,t){ var pa=hx(a),pb=hx(b); return 'rgb('+((lerp(pa[0],pb[0],t))|0)+','+((lerp(pa[1],pb[1],t))|0)+','+((lerp(pa[2],pb[2],t))|0)+')'; }
+function hx(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+
+/* --- ablation --- */
+var ABL=[{n:'ANN',acc:31.9,pm:14.3,col:C.mut},{n:'CNN',acc:75.0,pm:8.5,col:C.cyan},{n:'MobileNetV2',acc:95.8,pm:2.6,col:C.lime}];
+function drawAblation(cv,p){ var s=setupCanvas(cv,280),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var padL=120,padR=110,top=24,rowH=(H-top-26)/3,trackW=W-padL-padR;
+  ctx.font='600 12px '+'"IBM Plex Mono",monospace'; ctx.textBaseline='middle';
+  ctx.strokeStyle=C.grid; ctx.fillStyle=C.mut; ctx.lineWidth=1;
+  for(var a=0;a<=100;a+=25){ var gx=padL+trackW*(a/100); ctx.beginPath(); ctx.moveTo(gx,top-6); ctx.lineTo(gx,H-22); ctx.stroke(); ctx.textAlign='center'; ctx.fillText(a+'%',gx,H-10); }
+  ABL.forEach(function(m,i){ var local=clamp01((p-i*0.16)/0.6),e=easeOut(local),cy=top+rowH*i+rowH/2,thick=lerp(20,46,(m.pm-2.6)/(14.3-2.6)),barW=trackW*(m.acc/100)*e,win=i===2;
+    ctx.fillStyle=win?C.lime:C.ink; ctx.textAlign='right'; ctx.font=(win?'600 13px ':'500 12px ')+'"IBM Plex Mono",monospace'; ctx.fillText(m.n,padL-12,cy);
+    ctx.fillStyle=C.grid; rr(ctx,padL,cy-thick/2,trackW,thick,5); ctx.fill();
+    ctx.fillStyle=m.col; if(win){ctx.shadowColor=C.lime;ctx.shadowBlur=18*e;} rr(ctx,padL,cy-thick/2,Math.max(barW,1),thick,5); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle=win?'#0a0e0d':C.ink; ctx.textAlign='left'; ctx.font='600 14px "IBM Plex Mono",monospace';
+    if(barW>64){ ctx.fillText((m.acc*e).toFixed(1)+'%',padL+10,cy); } else { ctx.fillStyle=C.ink; ctx.fillText((m.acc*e).toFixed(1)+'%',padL+barW+10,cy); }
+    var pm=lerp(14.3,m.pm,e); ctx.fillStyle=m.col; ctx.textAlign='left'; ctx.font='500 11px "IBM Plex Mono",monospace'; ctx.fillText(pm.toFixed(1)+'M',padL+trackW+12,cy);
+  }); }
+
+/* --- confusion --- */
+var CLASSES=['f.apple','f.banana','f.bellpep','f.carrot','f.cucumb','f.mango','f.orange','f.potato','f.strawb','f.tomato','r.apple','r.banana','r.bellpep','r.carrot','r.cucumb','r.mango','r.orange','r.potato','r.strawb','r.tomato'];
+var REC=[.943,.971,.929,.957,.986,1,.986,.929,1,.971,.929,1,.60,.80,.90,.986,.929,.743,.943,.957]; // diag recall
+var CM=(function(){ var n=20,a=new Float32Array(n*n); for(var r=0;r<n;r++){ var diag=REC[r]; a[r*n+r]=diag; var rem=1-diag, k=(r<10? (r+10):(r-10)); a[r*n+k]+=rem*0.55; var k2=(r+1)%n; a[r*n+k2]+=rem*0.45; } return a; })();
+var cmHover=null,cmP=0;
+function drawConfusion(cv,p){ cmP=p; var s=setupCanvas(cv,300),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var n=20,m=20,gw=W-m-8,gh=H-m-8,cw=gw/n,ch=gh/n,reveal=easeOut(p);
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++){ var v=CM[r*n+c]; if(!v)continue; var t=Math.sqrt(v),cellP=clamp01(reveal*1.6-(r+c)/(2*n)); if(cellP<=0)continue; var k=t*cellP;
+    ctx.fillStyle=(r===c)?mix(C.bg,C.lime,k):mix(C.bg,C.reject,k*0.9); ctx.fillRect(m+c*cw+0.5,m+r*ch+0.5,cw-1,ch-1); }
+  // family boxes (fresh-block, rotten-block)
+  ctx.strokeStyle=C.cyan; ctx.globalAlpha=0.4*reveal; ctx.lineWidth=1.2;
+  ctx.strokeRect(m,m,10*cw,10*ch); ctx.strokeRect(m+10*cw,m+10*ch,10*cw,10*ch); ctx.globalAlpha=1;
+  if(cmHover){ var r2=cmHover.r,c2=cmHover.c; ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.strokeRect(m+c2*cw,m+r2*ch,cw,ch);
+    var tip='true '+CLASSES[r2]+' · pred '+CLASSES[c2]; ctx.font='600 11px "IBM Plex Mono",monospace'; var tw=ctx.measureText(tip).width+14;
+    var tx=Math.min(m+c2*cw,W-tw-4),ty=m+r2*ch-22; ctx.fillStyle='rgba(7,10,9,.92)'; rr(ctx,tx,ty,tw,18,5); ctx.fill(); ctx.fillStyle=C.lime; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(tip,tx+7,ty+9); }
+}
+(function(){ var cv=document.getElementById('cv-confusion'); if(!cv)return;
+  cv.addEventListener('mousemove',function(ev){ var rect=cv.getBoundingClientRect(),m=20,cw=(cv.clientWidth-m-8)/20,ch=(parseInt(cv.style.height)-m-8)/20;
+    var c=Math.floor((ev.clientX-rect.left-m)/cw),r=Math.floor((ev.clientY-rect.top-m)/ch); cmHover=(r>=0&&r<20&&c>=0&&c<20)?{r:r,c:c}:null; drawConfusion(cv,cmP); });
+  cv.addEventListener('mouseleave',function(){ cmHover=null; drawConfusion(cv,cmP); });
+})();
+
+/* --- ROC --- */
+var ROC=(function(){ var pts=[],N=40; for(var i=0;i<=N;i++){ var f=i/N, t=Math.pow(f,0.06); pts.push({f:f,t:Math.min(1,t)}); } pts[0]={f:0,t:0}; pts[N]={f:1,t:1}; return pts; })();
+function drawROC(cv,p){ var s=setupCanvas(cv,220),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var m=40,gw=W-m-16,gh=H-m-20,ox=m,oy=H-m,X=function(f){return ox+f*gw;},Y=function(t){return oy-t*gh;};
+  ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.fillStyle=C.mut; ctx.font='500 11px "IBM Plex Mono",monospace';
+  for(var i=0;i<=4;i++){ ctx.beginPath(); ctx.moveTo(X(i/4),oy); ctx.lineTo(X(i/4),oy-gh); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ox,Y(i/4)); ctx.lineTo(ox+gw,Y(i/4)); ctx.stroke(); }
+  ctx.setLineDash([5,5]); ctx.strokeStyle=C.mut; ctx.beginPath(); ctx.moveTo(X(0),Y(0)); ctx.lineTo(X(1),Y(1)); ctx.stroke(); ctx.setLineDash([]);
+  var e=easeOut(p),shown=Math.max(2,Math.floor(e*ROC.length)),sub=ROC.slice(0,shown);
+  ctx.beginPath(); ctx.moveTo(X(sub[0].f),oy); sub.forEach(function(pt){ctx.lineTo(X(pt.f),Y(pt.t));}); ctx.lineTo(X(sub[sub.length-1].f),oy); ctx.closePath(); ctx.fillStyle='rgba(168,255,53,0.10)'; ctx.fill();
+  ctx.beginPath(); ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.strokeStyle=C.lime; sub.forEach(function(pt,i){ i?ctx.lineTo(X(pt.f),Y(pt.t)):ctx.moveTo(X(pt.f),Y(pt.t)); }); ctx.stroke();
+  ctx.fillStyle=C.ink; ctx.font='600 18px "IBM Plex Mono",monospace'; ctx.textAlign='right'; ctx.fillText('AUC '+(0.5+0.494*e).toFixed(3),W-18,Y(1)+20);
+}
+
+/* --- noise floor comeback --- */
+function drawNoise(cv,p){ var s=setupCanvas(cv,300),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var m=46,gw=W-m-30,gh=H-m-40,ox=m,oy=H-m,max=7,X=function(v){return ox+(v/max)*gw;};
+  var e=easeOut(p);
+  // noise floor band 3.19
+  ctx.fillStyle='rgba(67,229,192,0.08)'; ctx.fillRect(ox,oy-gh,X(3.19)-ox,gh);
+  ctx.strokeStyle=C.cyan; ctx.setLineDash([4,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(X(3.19),oy-gh); ctx.lineTo(X(3.19),oy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=C.cyan; ctx.font='600 11px "IBM Plex Mono",monospace'; ctx.textAlign='center'; ctx.fillText('noise floor 3.19',X(3.19),oy-gh-8);
+  var bars=[{n:'naive baseline',v:6.26,c:C.mut},{n:'LSTM v1 (count only)',v:6.69,c:C.reject},{n:'LSTM + calendar',v:3.59,c:C.lime}];
+  var bh=34,gap=20,top=14;
+  bars.forEach(function(b,i){ var y=top+i*(bh+gap),loc=clamp01((e-i*0.12)/0.6),ee=easeOut(loc);
+    ctx.fillStyle=C.ink; ctx.textAlign='right'; ctx.font='500 11px "IBM Plex Mono",monospace'; ctx.textBaseline='middle'; ctx.fillText(b.n,ox-8,y+bh/2);
+    ctx.fillStyle=C.grid; rr(ctx,ox,y,gw,bh,5); ctx.fill();
+    ctx.fillStyle=b.c; if(i===2){ctx.shadowColor=C.lime;ctx.shadowBlur=16*ee;} rr(ctx,ox,y,Math.max((b.v/max)*gw*ee,1),bh,5); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle=(i===2)?'#0a0e0d':C.ink; ctx.textAlign='left'; ctx.font='600 13px "IBM Plex Mono",monospace'; ctx.fillText((b.v*ee).toFixed(2)+' MAE',ox+10,y+bh/2);
+  });
+  ctx.fillStyle=C.mut; ctx.font='500 10px "IBM Plex Mono",monospace'; ctx.textAlign='right'; ctx.textBaseline='alphabetic';
+  for(var t=0;t<=max;t++){ ctx.fillText(t,X(t),oy+14); }
+}
+
+/* --- calendar sin/cos --- */
+function drawCal(cv,p){ var s=setupCanvas(cv,130),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var m=20,gw=W-2*m,gh=H-2*m,midY=H/2,e=easeOut(p);
+  ctx.strokeStyle=C.grid; ctx.beginPath(); ctx.moveTo(m,midY); ctx.lineTo(W-m,midY); ctx.stroke();
+  [['sin',C.lime,0],['cos',C.cyan,Math.PI/2]].forEach(function(o){ ctx.beginPath(); ctx.strokeStyle=o[1]; ctx.lineWidth=2;
+    for(var x=0;x<=gw*e;x++){ var day=(x/gw)*7,y=midY-Math.sin(2*Math.PI*day/7+o[2])*gh*0.36; x?ctx.lineTo(m+x,y):ctx.moveTo(m+x,y); } ctx.stroke(); });
+  ctx.fillStyle=C.mut; ctx.font='10px "IBM Plex Mono",monospace'; ctx.textAlign='center'; ['M','T','W','T','F','S','S'].forEach(function(d,i){ ctx.fillText(d,m+(i/7)*gw+gw/14,H-4); });
+}
+
+/* wire viz to scroll */
+function vizScrub(id,fn){ var cv=document.getElementById(id); if(!cv)return;
+  if(REDUCE||!HAS_GSAP){ fn(cv,1); return; }
+  var st={p:0}; gsap.to(st,{p:1,ease:'none',scrollTrigger:{trigger:cv,start:'top 80%',end:'bottom 55%',scrub:0.6,
+    onUpdate:function(self){ fn(cv,self.progress); }}}); fn(cv,0);
+}
+function initVizScroll(){
+  vizScrub('cv-ablation',drawAblation);
+  vizScrub('cv-confusion',drawConfusion);
+  vizScrub('cv-roc',drawROC);
+  vizScrub('cv-noise',drawNoise);
+  vizScrub('cv-cal',drawCal);
+}
+function drawAllStatic(){ ['cv-ablation','cv-confusion','cv-roc','cv-noise','cv-cal'].forEach(function(id){ var cv=document.getElementById(id); if(!cv)return;
+  ({'cv-ablation':drawAblation,'cv-confusion':drawConfusion,'cv-roc':drawROC,'cv-noise':drawNoise,'cv-cal':drawCal})[id](cv,1); }); }
+window.addEventListener('resize',function(){ if(REDUCE||!HAS_GSAP){ drawAllStatic(); } });
+
+/* ============ CAMPAIGN FILM ============ */
+function initFilm(){
+  var film=document.getElementById('film'); if(!film) return;
+  var frames=film.querySelectorAll('.film-frame'), fill=document.getElementById('filmFill'), btn=document.getElementById('filmPlay');
+  if(REDUCE || !HAS_GSAP){ frames.forEach(function(f,i){ f.style.opacity=(i===frames.length-1)?1:0; }); if(fill)fill.style.width='100%'; if(btn)btn.style.display='none'; return; }
+  gsap.set(frames,{opacity:0});
+  var tl=gsap.timeline({repeat:-1, paused:true, onUpdate:function(){ if(fill) fill.style.width=(tl.progress()*100)+'%'; }});
+  frames.forEach(function(f){
+    var anims=f.querySelectorAll('.anim');
+    tl.fromTo(f,{opacity:0},{opacity:1,duration:.5,ease:'power2.out'})
+      .fromTo(anims,{y:18,opacity:0},{y:0,opacity:1,duration:.5,stagger:.08,ease:'power3.out'},'<')
+      .to(f,{opacity:1,duration:1.5})
+      .to(f,{opacity:0,duration:.45,ease:'power2.in'});
+  });
+  // produce reel: cycle real fruit & veg photos through the scan frame (preloaded)
+  var reel=['apple','carrot','strawberry','tomato','mango','cucumber','banana','bellpepper','orange','potato'];
+  reel.forEach(function(n){ var im=new Image(); im.src='frontend/assets/produce/'+n+'.jpg'; });
+  var pi=document.getElementById('filmProduce'), ri=0;
+  if(pi){ setInterval(function(){ ri=(ri+1)%reel.length; pi.src='frontend/assets/produce/'+reel[ri]+'.jpg'; }, 650); }
+  ScrollTrigger.create({ trigger:film, start:'top 80%', end:'bottom 20%',
+    onToggle:function(s){ if(s.isActive) tl.play(); else tl.pause(); } });
+  if(btn) btn.addEventListener('click',function(){ if(tl.paused()){ tl.play(); btn.textContent='❚❚'; } else { tl.pause(); btn.textContent='▶'; } });
+}
+
+/* ============ DECISION MACHINE ============ */
+(function(){ var range=document.getElementById('dmRange'); if(!range)return;
+  var needle=document.getElementById('dmNeedle'),prob=document.getElementById('dmProb'),conf=document.getElementById('dmConf'),verdict=document.getElementById('dmVerdict'),shelf=document.getElementById('dmShelf');
+  function upd(){ var rp=range.value/100; needle.style.left=(rp*100)+'%'; prob.textContent=rp.toFixed(2);
+    // confidence dips near band edges
+    var cf=clamp01(1-1.2*Math.max(0,0.18-Math.min(Math.abs(rp-0.40),Math.abs(rp-0.65)))*4); cf=0.55+0.42*cf;
+    conf.textContent=cf.toFixed(2);
+    var v,col,sh;
+    if(cf<0.70){ v='REVIEW'; col='var(--review)'; sh='hand to a human · relabel'; }
+    else if(rp>=0.65){ v='REJECT'; col='var(--reject)'; sh='remove · donate (Law 1/2025)'; }
+    else if(rp>=0.40){ v='SELL SOON'; col='var(--sell)'; sh=(rp>0.55?'−40% last day':'−20% markdown'); }
+    else { v='FRESH'; col='var(--fresh)'; sh='full price'; }
+    verdict.textContent=v; verdict.style.color=col; shelf.textContent=sh;
+  }
+  range.addEventListener('input',upd); upd();
+})();
+
+/* ============ CONVEYOR ============ */
+(function(){ var box=document.getElementById('conveyor'); if(!box||REDUCE)return;
+  var emojis=['🍎','🍌','🍊','🥕','🍓','🥭'],id=1;
+  function spawn(){ var f=document.createElement('div'); f.className='fruit'; f.textContent=emojis[(Math.random()*emojis.length)|0];
+    var tag=document.createElement('span'); tag.className='id'; tag.textContent='#A'+(id++); f.appendChild(tag);
+    f.style.left='-70px'; box.appendChild(f);
+    var x=-70,W=box.clientWidth; var iv=setInterval(function(){ x+=2.2; f.style.left=x+'px';
+      if(x>W*0.46&&x<W*0.54){ f.style.borderColor='var(--lime-bright)'; f.style.boxShadow='0 0 18px var(--glow)'; }
+      if(x>W){ clearInterval(iv); f.remove(); } },16);
+  }
+  var spawnIv=setInterval(spawn,1700); spawn();
+  // pause offscreen
+  if('IntersectionObserver' in window){ var io=new IntersectionObserver(function(e){ if(!e[0].isIntersecting){clearInterval(spawnIv);} else { spawnIv=setInterval(spawn,1700);} }); io.observe(box); }
+})();
+
+/* ============ ROI CALCULATOR ============ */
+(function(){ var st=document.getElementById('cStores'),un=document.getElementById('cUnits'),rt=document.getElementById('cRate'); if(!st)return;
+  var stV=document.getElementById('cStoresV'),unV=document.getElementById('cUnitsV'),rtV=document.getElementById('cRateV'),out=document.getElementById('cOut');
+  function fmt(n){ return n.toLocaleString('en-US'); }
+  function upd(){ var stores=+st.value,units=+un.value,rate=+rt.value/100;
+    stV.textContent=fmt(stores); unV.textContent=fmt(units); rtV.textContent=rt.value+'%';
+    var rescued=units*rate*0.5; // convert ~half of saveable
+    var perDay=rescued*0.55*0.60; var perYear=perDay*360*stores;
+    out.textContent='€'+fmt(Math.round(perYear));
+  }
+  [st,un,rt].forEach(function(e){e.addEventListener('input',upd);}); upd();
+})();
+
+/* ============ HERO TELEMETRY ticker ============ */
+(function(){ var t=document.getElementById('heroTele'); if(!t||REDUCE)return; var f=1;
+  setInterval(function(){ f++; t.innerHTML='FRAME '+String(f).padStart(4,'0')+' · reading…<br><b>spectral lab</b> · lab/spectral'; },900);
+})();
+
+/* if libs missing, ensure content visible */
+if(!HAS_GSAP){ document.documentElement.classList.remove('js'); document.documentElement.classList.add('no-js'); initReveals(); }
+// fonts loaded refresh
+if(HAS_GSAP && document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ ScrollTrigger.refresh(); }); }
+window.addEventListener('load',function(){ if(HAS_GSAP) ScrollTrigger.refresh(); });
+
+})();
+</script>
+</body>
+</html>

@@ -114,7 +114,7 @@ window.addEventListener("resize", () => moveRail(activeTab));
 fetch(`${API}/api/health`).then(r => r.json()).then(h => {
   if (h.classifier_loaded) { statusText.textContent = "model live"; statusPill.className = "status-pill ok"; }
   else { statusText.textContent = "classifier not trained"; statusPill.className = "status-pill warn"; }
-  if (window.ctxStatus) ctxStatus("ctx-model", h.classifier_loaded ? "live · 95.6%" : "not trained", h.classifier_loaded ? "ok" : "warn");
+  if (window.ctxStatus) ctxStatus("ctx-model", h.classifier_loaded ? "live · 95.8%" : "not trained", h.classifier_loaded ? "ok" : "warn");
 }).catch(() => { statusText.textContent = "backend offline"; statusPill.className = "status-pill err"; if (window.ctxStatus) ctxStatus("ctx-model", "offline", "err"); });
 
 /* ---------------- camera ---------------- */
@@ -1279,7 +1279,7 @@ async function renderEval() {
 
   const boot = [
     ["Node MAD-04 online · firmware REV 2.6", "sys"],
-    ["MobileNetV2 classifier loaded · 95.6%", "sys"],
+    ["MobileNetV2 classifier loaded · 95.8%", "sys"],
     ["LSTM forecast model synced", "sys"],
     ["YOLOv8n detector armed", "sys"],
     ["Market feed connected", "sys"],

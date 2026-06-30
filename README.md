@@ -160,12 +160,12 @@ and comparing them. The whole story is the staircase of results:
 
 | Model | What it is | Test accuracy | Parameters | Train time |
 |---|---|---:|---:|---:|
-| **ANN** (flattened pixels) | Dense net on raw pixels | **22.2%** | 14.3M | 13.2 min |
-| **CNN from scratch** | Conv blocks, learns features | **73.3%** | 8.5M | 35.1 min |
-| **MobileNetV2 transfer** | Pretrained backbone, fine-tuned | **95.6%** | **2.6M** | 39.1 min |
+| **ANN** (flattened pixels) | Dense net on raw pixels | **31.9%** | 14.3M | 17.0 min |
+| **CNN from scratch** | Conv blocks, learns features | **75.0%** | 8.5M | 46.2 min |
+| **MobileNetV2 transfer** | Pretrained backbone, fine-tuned | **95.8%** | **2.6M** | 61.2 min |
 
 Read that table top to bottom and the architecture lesson jumps out: the
-transfer-learning model is **~4.3× more accurate than the ANN while using ~5.5×
+transfer-learning model is **~3.0× more accurate than the ANN while using ~5.5×
 fewer parameters.** More parameters did not help the ANN — *the right inductive
 bias* (convolution + pretrained features) did.
 
@@ -230,7 +230,7 @@ ann.fit(train_g, validation_data=val_g, epochs=8,
         callbacks=[EarlyStopping(patience=3, restore_best_weights=True)])
 ```
 
-**Result: 22.2% accuracy with 14.3M parameters.** It is the *biggest* model and
+**Result: 31.9% accuracy with 14.3M parameters.** It is the *biggest* model and
 the *worst* performer — exactly the point. (Random guessing on 20 classes is 5%,
 so it learned *something*, just not much.)
 
@@ -265,8 +265,8 @@ cnn.fit(train_g, validation_data=val_g, epochs=12,
         callbacks=[EarlyStopping(patience=3, restore_best_weights=True)])
 ```
 
-**Result: 73.3% accuracy with 8.5M parameters.** A massive jump over the ANN
-(22% → 73%) with *fewer* parameters. That leap is the whole argument for using
+**Result: 75.0% accuracy with 8.5M parameters.** A massive jump over the ANN
+(32% → 75%) with *fewer* parameters. That leap is the whole argument for using
 convolutions on images. It's limited only by how much it can learn from our
 (relatively small) dataset alone.
 
@@ -320,7 +320,7 @@ Why this works, in plain terms:
   improving, restore the best weights), `ModelCheckpoint` (save the best model),
   `ReduceLROnPlateau` (drop LR when stuck), `TensorBoard` (logged in `logs/mnv2`).
 
-**Result: 95.6% accuracy with only 2.6M trainable parameters** — the best
+**Result: 95.8% accuracy with only 2.6M trainable parameters** — the best
 accuracy *and* the smallest model. That is the transfer-learning payoff.
 
 ### 4.5 Data pipeline and augmentation
@@ -352,7 +352,7 @@ notebook.
 
 ### 4.6 Results, and what they teach us
 
-- **The ablation (the headline):** 22.2% → 73.3% → 95.6%. Stored in
+- **The ablation (the headline):** 31.9% → 75.0% → 95.8%. Stored in
   `models/training_summary.json`, charted in `docs/figures/model_comparison.png`.
 - **Binary fresh-vs-rotten ROC-AUC = 0.9938** (`models/eval.json`,
   `docs/figures/roc_curve.png`). For the business, fresh-vs-rotten is the
@@ -370,7 +370,7 @@ notebook.
 > `models/cnn_scratch.keras`) are **quick-trained at 96px for ~4 minutes each**
 > (`scripts/train_compare_models.py`) and score ~13% / ~28% — intentionally low,
 > only to show the *qualitative* gap live without a long training wait. The real
-> ablation numbers (22.2 / 73.3 / 95.6) come from the full `train_models.py`.
+> ablation numbers (31.9 / 75.0 / 95.8) come from the full `train_models.py`.
 > Don't confuse the two.
 
 ### 4.7 Stage 1 — YOLOv8 detection + tracking
@@ -447,7 +447,7 @@ computer vision**, not the neural net — see below.
 
 ### 4.9 Robustness without retraining
 
-A model that scores 95.6% on clean test images can still wobble on a shaky phone
+A model that scores 95.8% on clean test images can still wobble on a shaky phone
 held under warm supermarket lighting. Rather than retrain, we added four
 inference-time tricks (all in `backend/pipeline.py`):
 
@@ -898,7 +898,7 @@ Batão — data + preprocessing (EDA, classic-CV showcase, field test set).
 | ANN | Model 1 baseline + the MobileNetV2 classifier head (§4.2, §4.4) |
 | CNN | Model 2 from-scratch + Model 3 transfer learning (§4.3, §4.4) |
 | RNN | LSTM spoilage forecast (§4.12) |
-| Architecture justification | the 22 → 73 → 96 ablation (§4.1, §4.6) |
+| Architecture justification | the 32 → 75 → 96 ablation (§4.1, §4.6) |
 | Evaluation + overfitting evidence | curves, confusion, ROC-AUC, classification report (§4.6) |
 | Explainability | Grad-CAM (§4.10) |
 | Classic CV (course labs) | white balance, HSV decay mask, saliency crop, CLAHE in EDA (§4.9) |

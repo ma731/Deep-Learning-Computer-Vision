@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FreshGuard — Deep Learning Final Project · IE University</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   FreshGuard — presentation deck · "Lab / Spectral"
+   Matches the product UI: near-black green surfaces, electric-lime
+   accent, cyan data, mono telemetry numerics. One product, end to end.
+   ============================================================ */
+:root{
+  --void:#0a0e0d; --card:#121a17; --well:#070a09; --float:#1a241f;
+  --ink:#eaf2ec; --ink-2:rgba(234,242,236,.74); --ink-3:rgba(234,242,236,.46);
+  --line:rgba(234,242,236,.10); --line-hi:rgba(234,242,236,.18); --top:rgba(234,242,236,.05);
+
+  --lime:#84e32b; --lime-bright:#a8ff35; --glow:rgba(168,255,53,.30);
+  --data:#43e5c0;
+  --fresh:#a8ff35; --sell:#f5b73d; --reject:#ff5c5c; --review:#8fb8ff;
+
+  --serif:"Space Grotesk", system-ui, sans-serif;
+  --sans:"Inter", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, monospace;
+
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-io:cubic-bezier(.77,0,.175,1);
+
+  --z-grain:60; --z-chrome:40; --z-presenter:80; --z-hint:70;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(58% 44% at 86% -12%, rgba(168,255,53,.10), transparent 64%),
+    radial-gradient(50% 40% at -6% 6%, rgba(67,229,192,.07), transparent 60%),
+    radial-gradient(80% 60% at 50% 122%, rgba(132,227,43,.06), transparent 72%),
+    var(--void);
+  background-attachment:fixed;
+  color:var(--ink); font-family:var(--sans); font-size:clamp(15px,1.55vw,21px); line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.num{font-variant-numeric:tabular-nums}
+em{font-style:italic}
+
+/* ---- film grain (cohesion with app) ---- */
+.grain{position:fixed;inset:0;z-index:var(--z-grain);pointer-events:none;opacity:.022;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+/* ============ DECK / SLIDES ============ */
+.deck{position:fixed;inset:0}
+.slide{
+  position:absolute;inset:0;
+  display:none;align-items:center;justify-content:center;
+  padding:clamp(36px,4.5vw,76px) clamp(40px,6vw,120px) clamp(60px,6.5vh,90px);
+  opacity:0;overflow:hidden;
+}
+.slide.active{display:flex}
+.slide.in{animation:slideIn .5s var(--ease-out) forwards}
+@keyframes slideIn{from{opacity:0}to{opacity:1}}
+.wrap{width:100%;max-width:1120px;margin:0 auto}
+
+/* content rises on slide enter */
+.slide.in .rise{animation:rise .62s var(--ease-out) both}
+.slide.in .rise:nth-child(2){animation-delay:.05s}
+.slide.in .rise:nth-child(3){animation-delay:.10s}
+.slide.in .rise:nth-child(4){animation-delay:.15s}
+.slide.in .rise:nth-child(5){animation-delay:.20s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* fragments (manual stepping) */
+.frag{opacity:0;transform:translateY(14px);transition:opacity .5s var(--ease-out),transform .5s var(--ease-out)}
+.frag.show{opacity:1;transform:none}
+
+/* ============ TYPE ============ */
+.kicker{font:600 clamp(11px,1.05vw,13px)/1 var(--mono);letter-spacing:.28em;text-transform:uppercase;color:var(--lime-bright)}
+h1{font-family:var(--serif);font-weight:600;letter-spacing:-.03em;line-height:.94;font-size:clamp(3.2rem,9vw,6rem);text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;letter-spacing:-.022em;line-height:1.02;font-size:clamp(2rem,4.4vw,3.3rem);text-wrap:balance}
+h3{font-family:var(--serif);font-weight:500;letter-spacing:-.01em;font-size:clamp(1.2rem,2vw,1.5rem)}
+.lead{color:var(--ink-2);font-size:clamp(1rem,1.5vw,1.22rem);line-height:1.55;max-width:64ch;text-wrap:pretty}
+.hi{color:var(--lime-bright);font-weight:600}
+.cy{color:var(--data)}
+.dim{color:var(--ink-3)}
+p+p{margin-top:.7em}
+
+/* ============ HERO ============ */
+.hero .bg{position:absolute;inset:0;background:url("frontend/assets/orchard.jpg") center/cover no-repeat;
+  filter:saturate(.5) brightness(.34) hue-rotate(36deg) contrast(1.05);transform:scale(1.08)}
+.hero.in .bg{animation:heroZoom 18s ease-in-out infinite alternate}
+@keyframes heroZoom{to{transform:scale(1.15) translateY(-2%)}}
+.hero .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,12,11,.5),rgba(8,12,11,.82) 62%,var(--void)),radial-gradient(70% 60% at 50% 40%,transparent,rgba(8,12,11,.5))}
+.hero .wrap{position:relative;text-align:center}
+.hero h1 span{color:var(--lime-bright)}
+.hero .tag{display:block;font-family:var(--serif);font-weight:400;font-size:clamp(1.1rem,2.6vw,1.7rem);color:var(--ink);margin-top:.7rem;text-transform:none;letter-spacing:normal;border:0;background:none;padding:0}
+.hero .tag em{color:var(--lime-bright)}
+.aperture{display:inline-grid;place-items:center;width:54px;height:54px;border:1.5px solid var(--glow);border-radius:50%;margin-bottom:1.4rem;position:relative}
+.aperture::before{content:"";width:16px;height:16px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 22px var(--glow)}
+.aperture::after{content:"";position:absolute;inset:-7px;border:1px solid var(--line);border-radius:50%}
+.herostats{margin-top:2.6rem;display:flex;justify-content:center;gap:clamp(1.4rem,4vw,3rem);flex-wrap:wrap}
+.herostats .v{font-family:var(--serif);font-weight:600;font-size:clamp(1.5rem,3vw,2.1rem);color:var(--lime-bright);font-variant-numeric:tabular-nums}
+.herostats .l{font:500 .62rem/1.3 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:.3rem}
+.herostats .sep{width:1px;background:var(--line)}
+.team-line{margin-top:2.4rem;font:500 .8rem/1.7 var(--sans);color:var(--ink-2)}
+.team-line b{color:var(--ink);font-weight:600}
+
+/* ============ ACT DIVIDER ============ */
+.act .wrap{display:grid;gap:.4rem}
+.act .no{font-family:var(--serif);font-weight:600;font-size:clamp(7rem,22vw,16rem);line-height:.8;
+  color:transparent;-webkit-text-stroke:1.5px var(--line-hi);letter-spacing:-.04em}
+.act h2{font-size:clamp(2.4rem,6vw,4.4rem)}
+.act .barline{width:72px;height:3px;background:var(--lime-bright);box-shadow:0 0 16px var(--glow);margin:.6rem 0 .2rem;border-radius:2px}
+.act .thesis{color:var(--ink-2);font-size:clamp(1rem,1.7vw,1.3rem);max-width:54ch;text-wrap:pretty}
+.handoff{margin-top:1.6rem;display:inline-flex;align-items:center;gap:.6rem;font:500 .78rem/1 var(--sans);color:var(--ink-3)}
+.handoff .who{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .8rem;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink)}
+.handoff .dot{width:7px;height:7px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 10px var(--glow)}
+
+/* ============ LAYOUT ATOMS ============ */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.4rem,3.4vw,3rem);align-items:center}
+.split.top{align-items:start}
+.split.wide-l{grid-template-columns:1.15fr .85fr}
+.split.wide-r{grid-template-columns:.85fr 1.15fr}
+.stack>*+*{margin-top:1rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.head{margin-bottom:1.6rem}
+.head h2{margin-top:.5rem}
+.note{font:500 .78rem/1.5 var(--sans);color:var(--ink-3)}
+
+/* metric readout (telemetry, not the SaaS hero-metric cliché) */
+.readout{border-top:1px solid var(--line);padding-top:.85rem}
+.readout .v{font-family:var(--serif);font-weight:600;font-size:clamp(2.1rem,4vw,3rem);line-height:1;color:var(--lime-bright);font-variant-numeric:tabular-nums}
+.readout .v.cy{color:var(--data)}
+.readout .l{font:500 .68rem/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}
+
+/* panel / card (used sparingly) */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.3rem 1.4rem;
+  box-shadow:inset 0 1px 0 var(--top),0 18px 40px -22px rgba(0,0,0,.7)}
+.panel h3{margin-bottom:.5rem}
+.panel .note{margin-top:.6rem}
+
+/* tier chips — exact product colors */
+.tiers{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.2rem}
+.chip{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem .8rem;border-radius:999px;
+  font:600 .72rem/1 var(--mono);letter-spacing:.04em;border:1px solid var(--line);background:var(--well)}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip.fresh i{background:var(--fresh);box-shadow:0 0 9px rgba(168,255,53,.6)} .chip.fresh{color:var(--fresh)}
+.chip.sell  i{background:var(--sell)}  .chip.sell{color:var(--sell)}
+.chip.reject i{background:var(--reject)} .chip.reject{color:var(--reject)}
+.chip.review i{background:var(--review)} .chip.review{color:var(--review)}
+
+/* tag */
+.tag{display:inline-block;padding:.3rem .65rem;border-radius:6px;border:1px solid var(--line-hi);
+  background:var(--well);color:var(--lime-bright);font:600 .64rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.tag.cy{color:var(--data)}
+
+/* ablation — the showpiece */
+.abl{display:grid;gap:1.1rem;margin-top:.4rem}
+.abl-row{display:grid;grid-template-columns:1fr;gap:.5rem}
+.abl-top{display:flex;align-items:baseline;justify-content:space-between;gap:1rem}
+.abl-name{font:600 .9rem/1.2 var(--sans);color:var(--ink-2)}
+.abl-name b{color:var(--ink);font-weight:600}
+.abl-meta{font:500 .72rem/1 var(--mono);color:var(--ink-3);letter-spacing:.02em}
+.abl-track{position:relative;height:42px;background:var(--well);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.abl-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:8px;transition:width 1.05s var(--ease-out);
+  background:linear-gradient(90deg,rgba(132,227,43,.35),var(--lime))}
+.abl-row.win .abl-fill{background:linear-gradient(90deg,rgba(168,255,53,.5),var(--lime-bright));box-shadow:0 0 26px -2px var(--glow)}
+.abl-pct{position:absolute;top:50%;transform:translateY(-50%);right:14px;font-family:var(--serif);font-weight:600;
+  font-size:1.4rem;color:var(--void);font-variant-numeric:tabular-nums;mix-blend-mode:luminosity}
+.abl-row:not(.win) .abl-pct{color:var(--ink);mix-blend-mode:normal;right:auto;left:14px}
+.abl-take{margin-top:1.2rem;font-size:1.05rem;color:var(--ink-2)}
+
+/* two-phase transfer diagram */
+.phase{display:grid;gap:.7rem}
+.phase .row{display:flex;align-items:center;gap:.7rem;font:500 .82rem/1.35 var(--sans);color:var(--ink-2)}
+.lock{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line);background:var(--well);color:var(--ink-3)}
+.lock.open{color:var(--lime-bright);border-color:var(--glow)}
+.lr{font:600 .72rem/1 var(--mono);color:var(--data);background:var(--well);border:1px solid var(--line);padding:.3rem .55rem;border-radius:6px}
+
+/* pipeline */
+.flow{display:flex;align-items:stretch;flex-wrap:wrap;gap:.5rem}
+.node{flex:1 1 0;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.75rem .8rem;text-align:center}
+.node b{display:block;font-family:var(--serif);font-weight:600;color:var(--ink);font-size:.95rem}
+.node span{font:500 .68rem/1.3 var(--mono);color:var(--ink-3);letter-spacing:.02em}
+.node.accent{border-color:var(--glow);box-shadow:inset 0 0 0 1px rgba(168,255,53,.08)}
+.node.accent b{color:var(--lime-bright)}
+.arrow{align-self:center;color:var(--lime);font-size:1.1rem;opacity:.7}
+.flow-label{font:600 .66rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .55rem}
+
+/* callouts — full border + tint, NO side-stripe */
+.box{border:1px solid var(--line);border-radius:12px;padding:.85rem 1rem;font-size:.92rem;line-height:1.45}
+.box b{font-weight:600}
+.box.bad{border-color:rgba(255,92,92,.35);background:rgba(255,92,92,.07)} .box.bad b{color:var(--reject)}
+.box.good{border-color:var(--glow);background:rgba(168,255,53,.07)} .box.good b{color:var(--lime-bright)}
+.box.info{border-color:rgba(143,184,255,.32);background:rgba(143,184,255,.07)} .box.info b{color:var(--review)}
+
+/* data table */
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{font:600 .66rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--line-hi)}
+td{padding:.6rem .7rem;border-bottom:1px solid var(--line);color:var(--ink-2)}
+td.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+tr.win td{background:rgba(168,255,53,.07);color:var(--ink)} tr.win td.n{color:var(--lime-bright);font-weight:600}
+tr.floor td{color:var(--ink-3);font-style:italic}
+
+/* image / report panel (matplotlib figs on light bed = "lab printout") */
+.printout{background:#f4faf0;border:1px solid var(--line);border-radius:14px;padding:.7rem;
+  box-shadow:0 22px 50px -26px rgba(0,0,0,.8)}
+.printout img{display:block;width:100%;border-radius:8px}
+.figcap{font:500 .72rem/1.4 var(--sans);color:var(--ink-3);margin-top:.7rem}
+
+/* value pillars */
+.pillar{display:grid;gap:.5rem}
+.pillar .n{font:600 .68rem/1 var(--mono);letter-spacing:.14em;color:var(--lime-bright)}
+.pillar h3{font-size:1.15rem}
+.pillar p{font-size:.88rem;color:var(--ink-2);line-height:1.45}
+
+/* demo slide */
+.demo{text-align:center}
+.demo h1{font-size:clamp(2.6rem,7vw,5rem)}
+.demo .run{display:inline-grid;gap:.55rem;margin-top:2rem;text-align:left;
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.2rem 1.5rem}
+.demo .run div{display:flex;gap:.8rem;align-items:baseline;font-size:.92rem;color:var(--ink-2)}
+.demo .run b{font-family:var(--mono);color:var(--lime-bright);font-size:.78rem}
+.live{display:inline-flex;align-items:center;gap:.5rem;color:var(--reject);font:600 .72rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--reject);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* close / team */
+.teamgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;margin-top:2rem}
+.member{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem .9rem}
+.member .nm{font-family:var(--serif);font-weight:600;font-size:.95rem;color:var(--ink)}
+.member .ro{font:500 .68rem/1.4 var(--mono);color:var(--lime-bright);margin-top:.4rem;letter-spacing:.02em;text-transform:uppercase}
+.repo{margin-top:2rem;font:500 .85rem/1 var(--mono);color:var(--ink-2)}
+.repo a,.repo span{color:var(--data)}
+
+/* appendix marker */
+.apx{text-align:center}
+.apx .tag{font-size:.8rem;padding:.5rem 1rem}
+
+/* ============ CHROME ============ */
+.chrome{position:fixed;left:0;right:0;z-index:var(--z-chrome);pointer-events:none;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:clamp(18px,2.4vh,30px) clamp(28px,4vw,64px)}
+.chrome.top{top:0}
+.chrome.bot{bottom:0}
+.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--serif);font-weight:600;font-size:.95rem;color:var(--ink)}
+.brand i{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--lime-bright);position:relative;display:grid;place-items:center}
+.brand i::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 8px var(--glow)}
+.brand .sep{color:var(--ink-3);font-family:var(--sans);font-weight:400;margin:0 .1rem}
+.brand small{font:500 .68rem/1 var(--mono);color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
+
+.acts{display:flex;align-items:center;gap:.55rem;font:600 .68rem/1 var(--mono);letter-spacing:.1em;color:var(--ink-3)}
+.acts b{color:var(--ink-3);transition:color .3s} .acts b.on{color:var(--lime-bright)}
+.acts .d{opacity:.4}
+
+.speaker{display:inline-flex;align-items:center;gap:.5rem;font:500 .72rem/1 var(--sans);color:var(--ink-2)}
+.speaker i{width:6px;height:6px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 8px var(--glow)}
+.speaker .role{color:var(--ink-3);font-family:var(--mono);font-size:.64rem;letter-spacing:.04em}
+
+.counter{font:500 .72rem/1 var(--mono);color:var(--ink-3);letter-spacing:.06em}
+.counter b{color:var(--ink)}
+.progress{position:fixed;left:0;bottom:0;height:2px;background:var(--lime-bright);width:0;z-index:var(--z-chrome);
+  box-shadow:0 0 12px var(--glow);transition:width .4s var(--ease-out)}
+.ie{display:flex;align-items:center;gap:.5rem;opacity:.6}
+.ie img{height:15px;filter:brightness(0) invert(1)}
+.ie span{font:500 .62rem/1 var(--mono);color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
+
+/* hint */
+.hint{position:fixed;right:clamp(28px,4vw,64px);bottom:clamp(46px,7vh,72px);z-index:var(--z-hint);
+  font:500 .68rem/1 var(--mono);color:var(--ink-3);opacity:.7;transition:opacity .4s}
+.hint kbd{display:inline-block;padding:.2rem .45rem;border:1px solid var(--line-hi);border-radius:5px;background:var(--card);color:var(--ink-2);margin:0 .1rem}
+.hint.hide{opacity:0}
+
+/* presenter mode */
+.presenter{position:fixed;inset:auto 0 0 0;z-index:var(--z-presenter);display:none;
+  background:rgba(7,10,9,.96);border-top:1px solid var(--line-hi);backdrop-filter:blur(12px);
+  padding:1rem clamp(28px,4vw,64px) 1.2rem;max-height:42vh;overflow:auto}
+.presenter.on{display:block}
+.presenter .ph{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.6rem}
+.presenter .timer{font-family:var(--serif);font-weight:600;font-size:1.6rem;color:var(--lime-bright);font-variant-numeric:tabular-nums}
+.presenter .timer.warn{color:var(--sell)} .presenter .timer.over{color:var(--reject)}
+.presenter .meta{font:500 .72rem/1.5 var(--mono);color:var(--ink-3);text-align:right}
+.presenter .meta b{color:var(--ink)}
+.presenter .ntext{font-size:.92rem;line-height:1.55;color:var(--ink-2);max-width:90ch}
+.presenter .ntext b{color:var(--ink)}
+.notes{display:none}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:880px){
+  .split,.split.wide-l,.split.wide-r{grid-template-columns:1fr;gap:1.4rem}
+  .grid3{grid-template-columns:1fr;gap:.8rem}
+  .teamgrid{grid-template-columns:repeat(2,1fr)}
+  .acts,.ie{display:none}
+}
+
+/* ============ REDUCED MOTION ============ */
+@media (prefers-reduced-motion:reduce){
+  .slide.in,.slide.in .rise,.hero.in .bg{animation:none!important}
+  .rise{opacity:1!important;transform:none!important}
+  .frag{transition:opacity .25s ease}
+  .frag{transform:none}
+  .abl-fill{transition:width .3s ease}
+  .live i{animation:none}
+}
+
+/* ============ PRINT / PDF EXPORT ============ */
+@media print{
+  @page{size:1280px 720px;margin:0}
+  html,body{height:auto;overflow:visible;background:var(--void)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grain,.hint,.presenter,.progress{display:none!important}
+  .deck{position:static}
+  .slide{position:relative;inset:auto;display:flex!important;opacity:1!important;
+    width:1280px;height:720px;page-break-after:always;break-after:page;overflow:hidden}
+  .slide .rise,.slide .frag{opacity:1!important;transform:none!important;animation:none!important}
+  .abl-fill{width:var(--w)!important}
+  .chrome{position:absolute}
+  .hero .bg{animation:none;transform:scale(1.08)}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- top chrome -->
+<div class="chrome top">
+  <div class="brand"><i></i>FreshGuard <span class="sep">/</span><small>Produce Quality Control</small></div>
+  <div class="acts" id="acts">
+    <b data-act="1">I</b><span class="d">·</span><b data-act="2">II</b><span class="d">·</span><b data-act="3">III</b><span class="d">·</span><b data-act="4">IV</b><span class="d">·</span><b data-act="5">V</b>
+  </div>
+</div>
+
+<!-- bottom chrome -->
+<div class="chrome bot">
+  <div class="ie"><img src="frontend/assets/ie-logo.svg" alt="IE University" onerror="this.style.display='none'"><span>IE University · Deep Learning</span></div>
+  <div class="speaker" id="speaker"><i></i><span id="spk-name">Team FreshGuard</span></div>
+  <div class="counter"><b id="cur">01</b> / <span id="tot">00</span></div>
+</div>
+<div class="progress" id="bar"></div>
+
+<div class="hint" id="hint"><kbd>→</kbd> next · <kbd>N</kbd> presenter · <kbd>F</kbd> full · <kbd>P</kbd> pdf</div>
+
+<div class="deck" id="deck">
+
+  <!-- ═══════════════ 1 · TITLE ═══════════════ MARCO -->
+  <section class="slide hero" data-speaker="Marco Ortiz Togashi" data-role="Coordinator" data-act="1">
+    <div class="bg"></div><div class="veil"></div>
+    <div class="wrap">
+      <div class="aperture rise"></div>
+      <h1 class="rise">Fresh<span>Guard</span></h1>
+      <p class="tag rise">A camera reads a fruit and turns its freshness into a <em>price decision</em>.</p>
+      <div class="herostats rise">
+        <div><div class="v num">95.8<span style="font-size:.6em">%</span></div><div class="l">CNN accuracy</div></div>
+        <div class="sep"></div>
+        <div><div class="v num">3</div><div class="l">architectures · ANN·CNN·RNN</div></div>
+        <div class="sep"></div>
+        <div><div class="v">Law&nbsp;1/2025</div><div class="l">compliance-ready</div></div>
+      </div>
+      <p class="team-line rise">
+        <b>Marco Ortiz Togashi</b> · <b>Sebastião Clemente</b> · <b>Yaxin Wu</b> · <b>Bassem El Halawani</b> · <b>Jorge Vildoso</b>
+      </p>
+    </div>
+    <div class="notes">SPEAKER — MARCO (00:00). Good morning. We are Team FreshGuard. We built a deep-learning system that looks at loose produce, fresh fruit and veg with no expiry label, and grades it in real time, then turns that grade into money. Over the next seven minutes you'll see the business case, the data, two trained models across all three architectures the course covers, and the integrated app. Then we go live. Yaxin, Bassem and Jorge each own the model they built; Sebastião owns the data; I'll bookend with the business and the system. Let's start with why this matters.</div>
+  </section>
+
+  <!-- ═══════════════ 2 · THE PROBLEM ═══════════════ MARCO -->
+  <section class="slide" data-speaker="Marco Ortiz Togashi" data-role="Business" data-act="1">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">The problem</span><h2>Supermarkets bin produce they could have sold.</h2></div>
+      <div class="split top">
+        <div class="stack">
+          <div class="readout rise"><div class="v num">4–6%</div><div class="l">of produce revenue lost to shrink, every year</div></div>
+          <p class="lead rise">Decay is caught <span class="hi">too late</span>: a busy employee eyeballs the shelf once a day. By the time a tomato "looks bad enough", it's bin material. One day earlier it could have been marked down and still sold.</p>
+        </div>
+        <div class="stack">
+          <div class="box info rise"><b>Spain's Law 1/2025</b> now requires retailers to discount or donate produce nearing the end of its life, instead of discarding it.</div>
+          <div class="box good rise"><b>The catch:</b> loose produce has no printed expiry date. A single apple in a bin carries no label. <b>Visual condition is the only available signal</b>, and that is exactly what a CNN is good at.</div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — MARCO (00:50). Stores throw away four to six percent of the fruit and veg they buy, and most of it is avoidable, it's a timing problem. Decay gets caught a day too late, after the markdown window has closed. On top of that, Spain's Law 1/2025 makes acting on near-expiry food a legal requirement, donate or discount, not bin. But here's the gap that makes it an AI problem: a packaged yogurt has a date; a loose apple does not. For loose produce, how it *looks* is the only signal you have. That's the opening for computer vision.</div>
+  </section>
+
+  <!-- ═══════════════ 3 · THE BET ═══════════════ MARCO -->
+  <section class="slide" data-speaker="Marco Ortiz Togashi" data-role="Business" data-act="1">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">The solution</span><h2>One system. Two models. Every grade becomes an action.</h2></div>
+      <div class="split rise">
+        <div class="panel">
+          <span class="tag">Scanner · CNN</span>
+          <h3 style="margin-top:.7rem">Grade it now</h3>
+          <p class="note">A fine-tuned CNN grades each item the instant it passes the camera, then names the price action.</p>
+          <div class="tiers">
+            <span class="chip fresh"><i></i>Fresh · full price</span>
+            <span class="chip sell"><i></i>Sell soon · −20/40%</span>
+            <span class="chip reject"><i></i>Reject · donate</span>
+            <span class="chip review"><i></i>Review · ask a human</span>
+          </div>
+        </div>
+        <div class="panel">
+          <span class="tag cy">Dashboard · LSTM</span>
+          <h3 style="margin-top:.7rem">See next week</h3>
+          <p class="note">An LSTM reads the daily counts and forecasts spoilage 7 days out, turning it into a concrete reorder instruction for the manager.</p>
+          <p class="note" style="margin-top:.8rem;color:var(--data)">"Order ~12% less. A lighter spoilage week ahead."</p>
+        </div>
+      </div>
+      <p class="rise" style="margin-top:1.5rem;font-family:var(--serif);font-size:clamp(1.2rem,2.4vw,1.7rem);line-height:1.25;color:var(--ink)">
+        Catch decay a day earlier, <span class="hi">mark down instead of bin</span>, and recover the margin.
+      </p>
+    </div>
+    <div class="notes">SPEAKER — MARCO (01:35). FreshGuard is two layers on one backend. On the floor, a CNN grades every item into one of four tiers, and crucially the model abstains when it isn't sure and asks a human, rather than guessing. On the back office, an LSTM turns those daily counts into a seven-day spoilage forecast and a plain-language reorder plan. One sentence ties it together: catch decay a day earlier, mark down instead of bin, recover the margin. Sebastião will take you through the data behind both models.</div>
+  </section>
+
+  <!-- ═══════════════ ACT II DIVIDER ═══════════════ SEBASTIÃO -->
+  <section class="slide act" data-speaker="Sebastião Clemente" data-role="Data" data-act="2">
+    <div class="wrap">
+      <div class="no rise">II</div>
+      <h2 class="rise">The data</h2>
+      <div class="barline rise"></div>
+      <p class="thesis rise">Two datasets, two models, one rule we never broke: <span class="hi">no future ever leaks into the past</span>.</p>
+      <div class="handoff rise"><span>Now presenting</span><span class="who"><span class="dot"></span>Sebastião Clemente</span></div>
+    </div>
+    <div class="notes">SPEAKER — SEBASTIÃO (02:00). Thanks Marco. I handled the data and preprocessing for both models. Two very different datasets: images for the vision model, a time series for the forecaster — but the same discipline on splits and leakage.</div>
+  </section>
+
+  <!-- ═══════════════ 4 · DATA ═══════════════ SEBASTIÃO -->
+  <section class="slide" data-speaker="Sebastião Clemente" data-role="Data" data-act="2">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Datasets</span><h2>What each model learns from.</h2></div>
+      <div class="split top">
+        <div class="panel rise">
+          <span class="tag">Images · CNN</span>
+          <div class="readout" style="border:0;padding:0;margin:.9rem 0 .2rem"><div class="v num">27,700</div><div class="l">images · 20 classes · 10 produce × fresh/rotten</div></div>
+          <p class="note">Kaggle "Fruit &amp; Vegetable Disease". 85/15 split → <b style="color:var(--ink)">23,537</b> train / <b style="color:var(--ink)">4,140</b> test. Classes are balanced, so no single class dominates the head.</p>
+          <p class="note" style="margin-top:.7rem">Moderate augmentation only (flip, rotation, zoom). Preprocessing is <span class="cy">locked to MobileNetV2's exact input range</span> at both train <em>and</em> inference: the most common silent bug in deployed ML, designed out.</p>
+        </div>
+        <div class="panel rise">
+          <span class="tag cy">Time series · LSTM</span>
+          <div class="readout cy" style="border:0;padding:0;margin:.9rem 0 .2rem"><div class="v cy num">730</div><div class="l">days of daily flagged-item counts · Spanish store</div></div>
+          <p class="note">Weekly + yearly seasonality with three calendar shocks: national holidays, end-of-month Law 1/2025 markdown blocks, and August demand swings.</p>
+          <p class="note" style="margin-top:.7rem"><span class="cy">Strictly chronological</span> 70/15/15 split. The scaler is fit on the training portion only. No future data ever touches training.</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — SEBASTIÃO (02:25). For the CNN: about 27,700 images, ten produce types, fresh and rotten, twenty classes total. EDA confirmed the classes are well balanced, which matters because imbalance would bias the classifier head. We kept augmentation moderate — we actually found aggressive augmentation *hurt* clean accuracy — and we locked MobileNetV2's preprocessing function at training and inference so live accuracy matches the notebook. For the LSTM: 730 days of daily counts modelling a Spanish store, with holiday and markdown shocks layered on the seasonality. The split is strictly chronological; we never shuffled the future into the past, and the scaler only ever sees training data. Yaxin, over to the model.</div>
+  </section>
+
+  <!-- ═══════════════ ACT III DIVIDER ═══════════════ YAXIN -->
+  <section class="slide act" data-speaker="Yaxin Wu" data-role="Core model" data-act="3">
+    <div class="wrap">
+      <div class="no rise">III</div>
+      <h2 class="rise">Computer vision</h2>
+      <div class="barline rise"></div>
+      <p class="thesis rise">We didn't <em>assume</em> a CNN was right for images. We <span class="hi">ran the ablation</span> and let the architecture earn it.</p>
+      <div class="handoff rise"><span>Now presenting</span><span class="who"><span class="dot"></span>Yaxin Wu</span></div>
+    </div>
+    <div class="notes">SPEAKER — YAXIN (02:55). Thanks Sebastião. I trained the vision models. The assignment asks us to justify the architecture, so we didn't just reach for the popular model — we trained three, on the exact same data, and compared.</div>
+  </section>
+
+  <!-- ═══════════════ 5 · ABLATION ═══════════════ YAXIN -->
+  <section class="slide" data-speaker="Yaxin Wu" data-role="Core model" data-act="3">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Architecture choice · same 20-class dataset</span><h2>The same job, three architectures.</h2></div>
+      <div class="abl">
+        <div class="abl-row rise">
+          <div class="abl-top"><div class="abl-name"><b>ANN</b>, dense net on flattened pixels</div><div class="abl-meta">14.3M params · 17 min</div></div>
+          <div class="abl-track"><div class="abl-fill" data-val="31.9" style="--w:31.9%"></div><span class="abl-pct"><span class="cup" data-count="31.9" data-dec="1">0</span>%</span></div>
+        </div>
+        <div class="abl-row rise">
+          <div class="abl-top"><div class="abl-name"><b>CNN from scratch</b>, conv blocks learn the features</div><div class="abl-meta">8.5M params · 46 min</div></div>
+          <div class="abl-track"><div class="abl-fill" data-val="75.0" style="--w:75%"></div><span class="abl-pct"><span class="cup" data-count="75.0" data-dec="1">0</span>%</span></div>
+        </div>
+        <div class="abl-row win rise">
+          <div class="abl-top"><div class="abl-name"><b>MobileNetV2</b>, pretrained backbone, fine-tuned</div><div class="abl-meta">2.6M params · 61 min</div></div>
+          <div class="abl-track"><div class="abl-fill" data-val="95.8" style="--w:95.8%"></div><span class="abl-pct"><span class="cup" data-count="95.8" data-dec="1">0</span>%</span></div>
+        </div>
+      </div>
+      <p class="abl-take rise"><span class="hi">3× the accuracy of the ANN, with 5.5× fewer parameters.</span> More parameters didn't help; the right inductive bias did.</p>
+    </div>
+    <div class="notes">SPEAKER — YAXIN (03:10). Read this top to bottom. The ANN flattens the image, which throws away all spatial structure — it tops out at 31.9 percent, and it's the *biggest* model at 14 million parameters. A CNN from scratch adds convolution, the right inductive bias for images, and jumps to 75 percent with fewer parameters. Then MobileNetV2, pretrained on ImageNet and fine-tuned, reaches 95.8 percent with just 2.6 million trainable parameters — the best accuracy *and* the smallest model. The lesson isn't "bigger is better." It's that the right architecture beats raw capacity. Let me show you how the transfer model gets there.</div>
+  </section>
+
+  <!-- ═══════════════ 6 · TRANSFER LEARNING ═══════════════ YAXIN -->
+  <section class="slide" data-speaker="Yaxin Wu" data-role="Core model" data-act="3">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">The core model · MobileNetV2</span><h2>Borrow the eyes. Teach the judgment.</h2></div>
+      <div class="split top">
+        <div class="stack">
+          <p class="lead rise">MobileNetV2 already learned edges, textures and colour from <span class="cy">1.4M ImageNet images</span>. We keep that, attach a small head, and specialise in two phases.</p>
+          <div class="box good rise"><b>Result: 95.8%</b> test accuracy with only <b>2.6M</b> trainable parameters. That is the transfer-learning payoff.</div>
+        </div>
+        <div class="panel phase rise">
+          <div class="row"><span class="lock">🔒</span><div><b style="color:var(--ink)">Phase 1 · train the head</b><br>Backbone frozen · new Dense head learns ImageNet→20 classes</div><span class="lr">LR 1e-3</span></div>
+          <div class="row"><span class="lock open">🔓</span><div><b style="color:var(--ink)">Phase 2 · fine-tune the top</b><br>Unfreeze top 30 layers · nudge, don't wreck the weights</div><span class="lr">LR 1e-5</span></div>
+          <p class="note" style="margin-top:.3rem">Callbacks: EarlyStopping · ModelCheckpoint · ReduceLROnPlateau. Built <span class="cy">un-nested</span> so Grad-CAM can reach the last conv layer.</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — YAXIN (03:55). Transfer learning works because the hard part — learning what edges and textures look like — is already done. Phase one: we freeze the backbone and train only a new head at a normal learning rate, so we can't damage the pretrained weights. Phase two: we unfreeze just the top 30 layers and fine-tune at a learning rate a hundred times smaller, one-e-minus-five, so we specialise to fruit-rot without erasing what ImageNet taught it. One design detail that matters later: we build the model flat, un-nested, so Grad-CAM can address the last convolutional layer directly. Bassem will show you that the model is not just accurate, it's trustworthy.</div>
+  </section>
+
+  <!-- ═══════════════ 7 · CNN PERFORMANCE + GRAD-CAM ═══════════════ BASSEM -->
+  <section class="slide" data-speaker="Bassem El Halawani" data-role="Evaluation" data-act="3">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Evaluation &amp; trust · 4,140 held-out images</span><h2>Accurate, and able to show its work.</h2></div>
+      <div class="split wide-r top">
+        <div class="stack">
+          <div class="grid3" style="grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="readout rise"><div class="v num">95.8<span style="font-size:.5em">%</span></div><div class="l">Test accuracy · 20 classes</div></div>
+            <div class="readout rise"><div class="v cy num">0.994</div><div class="l">Binary AUC · fresh vs rotten</div></div>
+          </div>
+          <div class="box good rise"><b>Grad-CAM</b> on every grade: the heatmap lands on the actual bruise, not the background. An audit trail Law 1/2025 asks for, at zero extra inference cost.</div>
+          <div class="box info rise"><b>Abstains when unsure</b> (confidence &lt; 0.70) and routes the crop to a human review queue; those exact crops then retrain the model. <b>It improves on its own weak spots.</b></div>
+          <p class="note rise">Train/val curves track cleanly through both phases, with no overfitting. Honest weak spot: rotten bell pepper (recall 0.60) wrinkles rather than browns.</p>
+        </div>
+        <div class="rise">
+          <div class="printout"><img src="docs/figures/gradcam_gallery.png" alt="Grad-CAM heatmaps attending to decay regions across produce classes"></div>
+          <p class="figcap">Grad-CAM gallery. Bright = "this region drove the verdict." Staff can trust it, not just obey it.</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — BASSEM (04:35). I owned evaluation and explainability. On 4,140 held-out images across twenty classes, the fine-tuned model hits 95.8 percent. But the decision that matters in a store is the binary one — fresh versus rotten — and there the AUC is 0.994, near-perfect separation. Two things make this deployable, not just accurate. First, Grad-CAM: every grade comes with a heatmap, and it lights up on the actual brown patch, not the background — that's the audit trail Law 1/2025 wants, for free. Second, the model knows when it doesn't know: below 70 percent confidence it abstains and sends the crop to a human review queue, and those crops are exactly what we retrain on, so it gets better on its own blind spots. Training and validation curves track cleanly, no overfitting. And we're honest about the weak spot — rotten bell pepper, recall 0.60, because peppers wrinkle instead of browning. Jorge, the forecaster.</div>
+  </section>
+
+  <!-- ═══════════════ ACT IV DIVIDER ═══════════════ JORGE -->
+  <section class="slide act" data-speaker="Jorge Vildoso" data-role="Forecasting" data-act="4">
+    <div class="wrap">
+      <div class="no rise">IV</div>
+      <h2 class="rise">Spoilage forecasting</h2>
+      <div class="barline rise"></div>
+      <p class="thesis rise">The honest story: our first model <em>lost</em> to a trivial baseline. <span class="hi">How we fixed it is the real depth.</span></p>
+      <div class="handoff rise"><span>Now presenting</span><span class="who"><span class="dot"></span>Jorge Vildoso</span></div>
+    </div>
+    <div class="notes">SPEAKER — JORGE (05:25). Thanks Bassem. I built the forecasting model and the manager dashboard. I want to show you a failure first, because fixing it is where the technical depth is.</div>
+  </section>
+
+  <!-- ═══════════════ 8 · LSTM ARC ═══════════════ JORGE -->
+  <section class="slide" data-speaker="Jorge Vildoso" data-role="Forecasting" data-act="4">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">LSTM design · the negative result</span><h2>A model that first lost, then learned.</h2></div>
+      <div class="stack">
+        <div class="box bad rise"><b>First run.</b> A count-only LSTM <b>lost</b> to the one-lag naive baseline by 6.8% MAE. Copying "last week's same weekday" is hard to beat on a seasonal series.</div>
+        <div class="box info rise"><b>Root cause.</b> The naive baseline can't anticipate a multi-day holiday surge or an end-of-month markdown block. Those shocks are keyed to <em>the calendar</em>, not to past counts.</div>
+        <div class="box good rise"><b>The fix.</b> Add 6 calendar features per day (day-of-week &amp; day-of-year as sin/cos, a holiday flag, a Law 1/2025 promo flag). Input goes from <span class="cy">(28,&nbsp;1)</span> to <span class="cy">(28,&nbsp;7)</span>, and the LSTM can finally see the shocks coming. Leakage-free: dates are known in advance.</div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — JORGE (05:40). Version one was a univariate LSTM reading only past counts, and it lost to a trivial one-lag naive baseline by almost seven percent. That's not embarrassing, it's diagnostic: the naive baseline copies last week's matching weekday, which is genuinely strong on a weekly-seasonal series. What it *cannot* do is know a three-day holiday weekend or an end-of-month markdown block is coming, because those are tied to the calendar, not to recent counts. So we gave the LSTM six calendar features — cyclical day encodings, a holiday flag, a promotion flag. Input shape goes from 28-by-1 to 28-by-7. And these are leakage-free, because dates are known in advance, the same way exogenous regressors work in SARIMAX or Prophet. Here's what that bought us.</div>
+  </section>
+
+  <!-- ═══════════════ 9 · LSTM RESULTS ═══════════════ JORGE -->
+  <section class="slide" data-speaker="Jorge Vildoso" data-role="Forecasting" data-act="4">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">LSTM results · chronological test set</span><h2>Near the ceiling, not just past the baseline.</h2></div>
+      <div class="split top">
+        <div class="stack">
+          <div class="readout rise"><div class="v num">+42.7%</div><div class="l">MAE reduction vs one-lag naive (RMSE −43.8%)</div></div>
+          <p class="lead rise">The right question isn't "did you beat the baseline?" It's <span class="hi">"how close to the ceiling?"</span> The data has irreducible <span class="cy">N(0, 4)</span> noise, so a perfect predictor still scores ≈3.19 MAE. We're at 3.59.</p>
+          <div class="box good rise"><b>Within 12% of the irreducible noise floor.</b> The remaining gap is randomness, not model weakness.</div>
+        </div>
+        <div class="panel rise">
+          <table>
+            <thead><tr><th>Model</th><th style="text-align:right">MAE</th><th style="text-align:right">RMSE</th></tr></thead>
+            <tbody>
+              <tr><td>One-lag naive baseline</td><td class="n">6.26</td><td class="n">8.25</td></tr>
+              <tr class="win"><td>Multivariate LSTM (ours)</td><td class="n">3.59</td><td class="n">4.64</td></tr>
+              <tr class="floor"><td>Noise floor (irreducible)</td><td class="n">~3.19</td><td class="n">—</td></tr>
+            </tbody>
+          </table>
+          <p class="figcap">Test set only · strictly chronological split · best weights ~epoch 42, val below train throughout.</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — JORGE (06:20). With the calendar features, the LSTM beats the naive baseline by 42.7 percent on MAE and 43.8 on RMSE. But the number I care about is the noise floor. We inject Gaussian noise with sigma 4 into the simulation, so even a predictor that nails the deterministic signal perfectly still carries one noise draw — about 3.19 MAE, unavoidable. Our model is at 3.59. That's within twelve percent of the theoretical ceiling; the remaining gap is less than one item a day, and it's randomness, not weakness. Split is strictly chronological, validation stayed below training the whole way, no overfitting. Marco will put both models together.</div>
+  </section>
+
+  <!-- ═══════════════ ACT V DIVIDER ═══════════════ MARCO -->
+  <section class="slide act" data-speaker="Marco Ortiz Togashi" data-role="Integration" data-act="5">
+    <div class="wrap">
+      <div class="no rise">V</div>
+      <h2 class="rise">The system, live</h2>
+      <div class="barline rise"></div>
+      <p class="thesis rise">Two models, one FastAPI service, <span class="hi">a loop that improves itself</span> the more the store uses it.</p>
+      <div class="handoff rise"><span>Now presenting</span><span class="who"><span class="dot"></span>Marco Ortiz Togashi</span></div>
+    </div>
+    <div class="notes">SPEAKER — MARCO (06:55). Thanks Jorge. Two models is only half the assignment — the other half is integration. Here's how it runs end to end.</div>
+  </section>
+
+  <!-- ═══════════════ 10 · SYSTEM ═══════════════ MARCO -->
+  <section class="slide" data-speaker="Marco Ortiz Togashi" data-role="Integration" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Integration · one FastAPI service</span><h2>End to end, in real time.</h2></div>
+      <div class="rise">
+        <p class="flow-label">Scanner pipeline</p>
+        <div class="flow">
+          <div class="node"><b>Camera</b><span>phone / webcam</span></div><span class="arrow">→</span>
+          <div class="node"><b>YOLOv8n</b><span>detect &amp; track</span></div><span class="arrow">→</span>
+          <div class="node accent"><b>MobileNetV2</b><span>20-class grade</span></div><span class="arrow">→</span>
+          <div class="node"><b>Grad-CAM</b><span>audit heatmap</span></div><span class="arrow">→</span>
+          <div class="node"><b>Verdict</b><span>tier + markdown</span></div>
+        </div>
+      </div>
+      <div class="rise" style="margin-top:1.3rem">
+        <p class="flow-label">Dashboard pipeline</p>
+        <div class="flow">
+          <div class="node"><b>Scan history</b><span>730d + live tally</span></div><span class="arrow">→</span>
+          <div class="node"><b>build_features</b><span>7 / day</span></div><span class="arrow">→</span>
+          <div class="node accent"><b>LSTM</b><span>28-day window</span></div><span class="arrow">→</span>
+          <div class="node"><b>7-day forecast</b><span>+ reorder plan</span></div>
+        </div>
+      </div>
+      <div class="box good rise" style="margin-top:1.4rem"><b>The data flywheel.</b> Every conveyor scan is appended to the history before forecasting. The scanner literally trains the forecaster. The more the store scans, the better both get. A real frontend in vanilla JS, <span class="cy">6 tabs</span>: Live · Manager · Market · Review · Model · Lab.</div>
+    </div>
+    <div class="notes">SPEAKER — MARCO (07:10). Everything runs as one FastAPI service. Top pipeline, the floor: YOLO finds and tracks the produce, MobileNetV2 grades it, Grad-CAM produces the audit heatmap, and staff get a verdict with a markdown action instantly. Bottom pipeline, the back office: the last 28 days of history plus today's live tally go through the feature builder into the LSTM, out comes a seven-day forecast and a reorder plan in plain English. The key design choice is the flywheel — today's scans feed tomorrow's forecast, so the system compounds with use. The app itself is a real six-tab console in vanilla JavaScript. Let's stop talking about it and run it.</div>
+  </section>
+
+  <!-- ═══════════════ 11 · BUSINESS / ROI ═══════════════ MARCO -->
+  <section class="slide" data-speaker="Marco Ortiz Togashi" data-role="Business" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Why it's a business, not a demo</span><h2>Margin, compliance, and a moat.</h2></div>
+      <div class="grid3">
+        <div class="panel pillar rise">
+          <span class="n">01 · RECOVER</span>
+          <h3>Margin, conservatively</h3>
+          <p>We only book value on "sell soon" items marked down and sold, recovering ~60% of retail. Fresh would've sold; reject is already lost. The € figure can't be inflated.</p>
+        </div>
+        <div class="panel pillar rise">
+          <span class="n">02 · COMPLY</span>
+          <h3>Law 1/2025, by design</h3>
+          <p>Loose produce has no expiry label, the exact gap the law targets. Every grade is logged and explained with Grad-CAM. Compliance and margin from one tool.</p>
+        </div>
+        <div class="panel pillar rise">
+          <span class="n">03 · DEFEND</span>
+          <h3>A compounding moat</h3>
+          <p>Runs on hardware stores already own: a phone or webcam, no special sensor. Explainable for staff and regulators. And it improves itself: review queue + forecast flywheel.</p>
+        </div>
+      </div>
+      <p class="note rise" style="margin-top:1.4rem">Honest go-to-market: per-store calibration for lighting drift, throughput batching on a fast belt, and POS integration to apply the markdown. The MVP proves the loop; the rollout is scoped, not hand-waved. €-projections are illustrative, not measured.</p>
+    </div>
+    <div class="notes">SPEAKER — MARCO (07:40, brief — keep momentum to demo). Three reasons this is a business. One, the money is conservative by construction: we only count value on sell-soon items that get marked down and sold, recovering about 60 percent of retail — we can't inflate it. Two, compliance: loose produce is exactly the unlabelled gap Law 1/2025 targets, and every grade is logged and explained. Three, the moat: it runs on a phone you already own, it's explainable, and it improves itself with use. We're also honest about what rollout needs — per-store calibration, throughput, POS integration. Now, the live demo.</div>
+  </section>
+
+  <!-- ═══════════════ 12 · DEMO HANDOFF ═══════════════ MARCO / TEAM -->
+  <section class="slide demo" data-speaker="Marco Ortiz Togashi" data-role="Live demo" data-act="5">
+    <div class="wrap">
+      <p class="live rise"><i></i>Live · switch to the app</p>
+      <h1 class="rise" style="margin-top:1rem">Let's see it live.</h1>
+      <div class="run rise">
+        <div><b>01</b> Scanner: show a fresh item, then a rotten one. Call the tier and the Grad-CAM patch.</div>
+        <div><b>02</b> Conveyor mode: majority-vote tracking holds steady across frames.</div>
+        <div><b>03</b> Manager: the 7-day LSTM forecast and today's recovered-€.</div>
+        <div><b>04</b> Action plan: the reorder recommendation and the markdown-surge alert.</div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER — MARCO + TEAM (08:00, target ~5 min live). Switch to the browser; the app is running and seeded. (1) Scanner tab: hold up a fresh fruit — green "fresh, full price"; then a rotten one — watch the tier flip and tap Explain to show the heatmap on the brown patch. (2) Conveyor mode: show the verdict staying stable as frames jitter — that's the 15-frame majority vote. (3) Manager tab: the forecast chart and the recovered-euro counter. (4) Read the action plan aloud — the reorder line and the markdown alert. If the camera fails: the seeded dashboard and the Model tab still tell the whole story. Then back here for Q&A. WATCH THE CLOCK — leave 2 minutes for questions.</div>
+  </section>
+
+  <!-- ═══════════════ 13 · CLOSE ═══════════════ TEAM -->
+  <section class="slide" data-speaker="Team FreshGuard" data-role="Q&amp;A" data-act="5">
+    <div class="wrap" style="text-align:center">
+      <div class="aperture rise" style="margin:0 auto 1.2rem"></div>
+      <h2 class="rise">Catch decay a day earlier. <span class="hi">Recover the margin.</span></h2>
+      <div class="teamgrid rise">
+        <div class="member"><div class="nm">Marco Ortiz Togashi</div><div class="ro">Integration &amp; demo</div></div>
+        <div class="member"><div class="nm">Sebastião Clemente</div><div class="ro">Data &amp; preprocessing</div></div>
+        <div class="member"><div class="nm">Yaxin Wu</div><div class="ro">Core model &amp; ablation</div></div>
+        <div class="member"><div class="nm">Bassem El Halawani</div><div class="ro">Evaluation &amp; XAI</div></div>
+        <div class="member"><div class="nm">Jorge Vildoso</div><div class="ro">Forecasting &amp; dashboard</div></div>
+      </div>
+      <p class="repo rise">github.com/ma731/Deep-Learning-Computer-Vision &nbsp;·&nbsp; <span>Questions?</span></p>
+    </div>
+    <div class="notes">SPEAKER — TEAM (Q&A). Thank you. We're happy to take questions. Quick routing: ablation &amp; training → Yaxin; metrics, Grad-CAM, confusion matrix → Bassem; forecasting &amp; the noise floor → Jorge; data, splits, augmentation → Sebastião; system, business &amp; rollout → Marco. Appendix slides follow for deep-dives: confusion matrix, noise-floor math, calendar-feature validity, robustness tricks, limitations, and the tech stack.</div>
+  </section>
+
+  <!-- ═══════════════ APPENDIX MARKER ═══════════════ -->
+  <section class="slide apx" data-speaker="Appendix" data-role="Backup" data-act="5">
+    <div class="wrap">
+      <span class="tag rise">Appendix · backup for Q&amp;A</span>
+      <h2 class="rise" style="margin-top:1rem">The deeper cuts.</h2>
+      <p class="lead rise" style="margin:0 auto">Confusion matrix · noise-floor math · calendar-feature validity · inference-time robustness · honest limitations · tech stack.</p>
+    </div>
+    <div class="notes">Not part of the 15-minute run. Jump here on the relevant question.</div>
+  </section>
+
+  <!-- A1 · CONFUSION MATRIX -->
+  <section class="slide" data-speaker="Bassem El Halawani" data-role="Appendix" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Appendix · CNN detail</span><h2>20 × 20 confusion matrix.</h2></div>
+      <div class="split wide-r top">
+        <div class="stack">
+          <p class="lead rise">Strong diagonal across all 20 classes. Where it slips, it confuses items <span class="hi">within a produce type</span> (sell-soon apple vs fresh apple), not across the fresh/rotten boundary that actually drives the markdown decision.</p>
+          <div class="box good rise"><b>AUC 0.994</b> on fresh-vs-rotten means the safety-critical "pass-rotten-as-fresh" rate is negligible.</div>
+        </div>
+        <div class="rise"><div class="printout"><img src="docs/figures/confusion_matrix.png" alt="20x20 confusion matrix with strong diagonal" style="max-height:62vh;width:auto;margin:0 auto"></div></div>
+      </div>
+    </div>
+    <div class="notes">Backup. Errors are intra-type, not across the fresh/rotten line. That's the boundary that matters in a store, and AUC 0.994 says we're near-perfect on it.</div>
+  </section>
+
+  <!-- A2 · NOISE FLOOR -->
+  <section class="slide" data-speaker="Jorge Vildoso" data-role="Appendix" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Appendix · forecasting detail</span><h2>Why the noise floor is the honest yardstick.</h2></div>
+      <div class="stack">
+        <p class="lead rise">The simulation injects <span class="cy">N(0, 4)</span> daily noise. A one-lag naive forecast carries <em>two</em> independent noise draws, a theoretical MAE lower bound near <b style="color:var(--ink)">4.5</b>, before any calendar shock adds error.</p>
+        <p class="lead rise">A predictor that nails the deterministic signal perfectly carries <em>one</em> draw: MAE ≈ <b style="color:var(--ink)">3.19</b> = 4 · √(2/π), unavoidable. Our LSTM reaches <b class="hi">3.59</b>. The 0.40 gap is noise, less than one item a day.</p>
+        <div class="box good rise"><b>12% from the ceiling</b> is a far stronger claim than "beat the baseline." It bounds how much performance is even left to win.</div>
+      </div>
+    </div>
+    <div class="notes">Backup. Noise floor = 4·√(2/π) ≈ 3.19. Our 3.59 minus 3.19 = 0.40 unexplained — acceptable for store-level planning.</div>
+  </section>
+
+  <!-- A3 · CALENDAR FEATURES -->
+  <section class="slide" data-speaker="Jorge Vildoso" data-role="Appendix" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Appendix · forecasting detail</span><h2>Why calendar features aren't leakage.</h2></div>
+      <div class="stack">
+        <div class="box good rise"><b>Real shocks.</b> Spanish national holidays (stores close, rotation stalls) and end-of-month Law 1/2025 markdown blocks. These are causal, not coincidental.</div>
+        <div class="box good rise"><b>Leakage-free.</b> Dates are known in advance. This is exactly how exogenous regressors work in SARIMAX and Prophet, standard production practice.</div>
+        <div class="box good rise"><b>Near-optimal, not a strawman.</b> The model lands within 12% of the irreducible noise floor. The lift is real signal, not an inflated baseline.</div>
+      </div>
+    </div>
+    <div class="notes">Backup. Lead with the noise-floor point — it's the hardest to dismiss. Calendar features are genuinely known ahead of time, so there's no future leaking into training.</div>
+  </section>
+
+  <!-- A4 · ROBUSTNESS -->
+  <section class="slide" data-speaker="Bassem El Halawani" data-role="Appendix" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Appendix · robustness without retraining</span><h2>Five inference-time tricks for the real floor.</h2></div>
+      <div class="grid3 rise" style="grid-template-columns:1fr 1fr">
+        <div class="box info"><b>Gray-world white balance</b><br><span class="note">Neutralise warm store lighting so an apple stops drifting toward "orange." (classic CV)</span></div>
+        <div class="box info"><b>Test-time augmentation</b><br><span class="note">Average the crop and its mirror, steadier on hard / small produce.</span></div>
+        <div class="box info"><b>Saliency crop</b><br><span class="note">Lock onto the most saturated blob so it sees the strawberry, not the table.</span></div>
+        <div class="box info"><b>Temporal majority vote</b><br><span class="note">15-frame softmax history per tracked item, so one odd frame can't flip the verdict.</span></div>
+      </div>
+      <div class="box good rise" style="margin-top:1rem"><b>Decay severity via HSV</b> (classic CV, not the net) measures the browned/bruised surface fraction, which drives whether "sell soon" means −20% or −40%.</div>
+    </div>
+    <div class="notes">Backup. A model that scores 95.8% on clean images can still wobble on a shaky phone under tungsten light. Rather than retrain, we added five inference-time tricks. The last one, HSV decay severity, is how a softmax becomes a specific markdown percentage.</div>
+  </section>
+
+  <!-- A5 · LIMITATIONS + STACK -->
+  <section class="slide" data-speaker="Team FreshGuard" data-role="Appendix" data-act="5">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Appendix · honesty &amp; stack</span><h2>What we'd fix, and what it's built on.</h2></div>
+      <div class="split top">
+        <div class="stack rise">
+          <h3>Honest limitations</h3>
+          <p class="note">· Domain shift: trained on clean Kaggle images; real stores need a small calibration set (the review queue is built for it).</p>
+          <p class="note">· Forecast history is simulated with Spanish seasonality; the method is real, live scans feed in.</p>
+          <p class="note">· One laptop CPU can't grade a fast belt: production batches frames or adds an edge GPU.</p>
+          <p class="note">· YOLO boxes only 4 of 10 types (COCO); the other 6 use a center-crop fallback.</p>
+          <p class="note">· € projections are illustrative, not measured savings.</p>
+        </div>
+        <div class="stack rise">
+          <h3>Tech stack</h3>
+          <p class="note"><b style="color:var(--ink)">Deep learning</b> · TensorFlow / Keras (CNN + LSTM), Ultralytics YOLOv8 + ByteTrack</p>
+          <p class="note"><b style="color:var(--ink)">Classic CV</b> · OpenCV (white balance, HSV mask, saliency)</p>
+          <p class="note"><b style="color:var(--ink)">ML tooling</b> · scikit-learn (metrics, t-SNE, scaler), pandas, numpy</p>
+          <p class="note"><b style="color:var(--ink)">Backend</b> · FastAPI + Uvicorn, SQLite scan log</p>
+          <p class="note"><b style="color:var(--ink)">Frontend</b> · vanilla HTML/CSS/JS, anime.js, qrcode.js (no framework)</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">Backup. A good project knows its own weak spots. The biggest real-world risk is domain shift; the active-learning queue is our answer. Stack is deliberately lightweight — it runs on a laptop and a phone.</div>
+  </section>
+
+</div>
+
+<!-- presenter overlay -->
+<div class="presenter" id="presenter">
+  <div class="ph">
+    <div class="timer" id="timer">00:00</div>
+    <div class="meta">
+      <div>Speaker: <b id="p-spk">—</b> · <b id="p-role">—</b></div>
+      <div>Next: <b id="p-next">—</b> &nbsp;|&nbsp; target 15:00 · <kbd>N</kbd> close · <kbd>R</kbd> reset timer</div>
+    </div>
+  </div>
+  <div class="ntext" id="p-notes">—</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var total = slides.length;
+  var idx = 0, frag = 0;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.getElementById('tot').textContent = String(total).padStart(2,'0');
+
+  // ---- count-up + bar fill on activation ----
+  function animateSlide(s, instant){
+    var bars = s.querySelectorAll('.abl-fill');
+    bars.forEach(function(b){
+      var v = b.getAttribute('data-val');
+      if(instant || reduce){ b.style.width = v + '%'; }
+      else { b.style.width = '0%'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ b.style.width = v + '%'; }); }); }
+    });
+    s.querySelectorAll('.cup').forEach(function(el){
+      var target = parseFloat(el.getAttribute('data-count'));
+      var dec = parseInt(el.getAttribute('data-dec')||'0',10);
+      if(instant || reduce){ el.textContent = target.toFixed(dec); return; }
+      var start = performance.now(), dur = 1050;
+      function tick(now){
+        var t = Math.min(1,(now-start)/dur);
+        var e = 1 - Math.pow(1-t,3); // ease-out cubic
+        el.textContent = (target*e).toFixed(dec);
+        if(t<1) requestAnimationFrame(tick); else el.textContent = target.toFixed(dec);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function fragsOf(s){ return s.querySelectorAll('.frag'); }
+
+  function render(animate, showAllFrags){
+    slides.forEach(function(s,i){
+      s.classList.toggle('active', i===idx);
+      s.classList.remove('in');
+    });
+    var cur = slides[idx];
+    if(animate) { void cur.offsetWidth; cur.classList.add('in'); }
+    // fragments
+    var f = fragsOf(cur);
+    f.forEach(function(el,i){ el.classList.toggle('show', showAllFrags ? true : i<frag); });
+    if(showAllFrags) frag = f.length;
+    animateSlide(cur, !animate);
+    // chrome
+    document.getElementById('cur').textContent = String(idx+1).padStart(2,'0');
+    document.getElementById('bar').style.width = (total>1 ? (idx/(total-1))*100 : 100) + '%';
+    var spk = cur.getAttribute('data-speaker')||'Team FreshGuard';
+    document.getElementById('spk-name').textContent = spk;
+    var act = cur.getAttribute('data-act');
+    document.querySelectorAll('#acts b').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-act')===act); });
+    updatePresenter();
+  }
+
+  function go(n, animate){
+    n = Math.max(0, Math.min(total-1, n));
+    if(n===idx) return;
+    idx = n; frag = 0;
+    render(animate!==false, false);
+    startTimer();
+  }
+
+  function next(){
+    var f = fragsOf(slides[idx]);
+    if(frag < f.length){ f[frag].classList.add('show'); frag++; updatePresenter(); startTimer(); }
+    else if(idx < total-1){ go(idx+1, true); }
+  }
+  function prev(){
+    if(frag > 0){ frag--; fragsOf(slides[idx])[frag].classList.remove('show'); updatePresenter(); }
+    else if(idx > 0){ idx--; frag = 0; render(true, true); startTimer(); }
+  }
+
+  // ---- presenter mode + timer ----
+  var presenter = document.getElementById('presenter');
+  var timerEl = document.getElementById('timer');
+  var t0 = null, tHandle = null;
+  function startTimer(){ if(t0===null){ t0 = Date.now(); tHandle = setInterval(updateTimer, 500); } }
+  function resetTimer(){ t0 = Date.now(); updateTimer(); }
+  function updateTimer(){
+    if(t0===null){ timerEl.textContent='00:00'; return; }
+    var s = Math.floor((Date.now()-t0)/1000);
+    var m = Math.floor(s/60); s = s%60;
+    timerEl.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    timerEl.className = 'timer' + (m>=15?' over':(m>=10?' warn':''));
+  }
+  function updatePresenter(){
+    if(!presenter.classList.contains('on')) return;
+    var cur = slides[idx];
+    var n = cur.querySelector('.notes');
+    document.getElementById('p-notes').innerHTML = n ? n.innerHTML : '—';
+    document.getElementById('p-spk').textContent = cur.getAttribute('data-speaker')||'—';
+    document.getElementById('p-role').textContent = cur.getAttribute('data-role')||'—';
+    var nx = slides[idx+1];
+    var nt = nx ? (nx.querySelector('h1,h2,.tag') ? nx.querySelector('h1,h2,.tag').textContent.trim() : 'Next') : 'End';
+    document.getElementById('p-next').textContent = nx ? (nx.getAttribute('data-speaker')+' — '+nt) : 'End of deck';
+  }
+
+  var hint = document.getElementById('hint');
+  var hintTimer = setTimeout(function(){ hint.classList.add('hide'); }, 6000);
+
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '||k==='ArrowDown'){ e.preventDefault(); next(); }
+    else if(k==='ArrowLeft'||k==='PageUp'||k==='ArrowUp'){ e.preventDefault(); prev(); }
+    else if(k==='Home'){ e.preventDefault(); go(0,true); }
+    else if(k==='End'){ e.preventDefault(); go(total-1,true); }
+    else if(k==='n'||k==='N'){ presenter.classList.toggle('on'); updatePresenter(); }
+    else if(k==='r'||k==='R'){ resetTimer(); }
+    else if(k==='f'||k==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); else document.exitFullscreen&&document.exitFullscreen(); }
+    else if(k==='p'||k==='P'){ window.print(); }
+    else { return; }
+    clearTimeout(hintTimer); hint.classList.add('hide');
+  });
+
+  // click / tap to advance (ignore clicks on links)
+  deck.addEventListener('click', function(e){ if(e.target.closest('a')) return; next(); });
+
+  // basic touch swipe
+  var sx=0;
+  deck.addEventListener('touchstart', function(e){ sx = e.changedTouches[0].clientX; }, {passive:true});
+  deck.addEventListener('touchend', function(e){ var dx = e.changedTouches[0].clientX - sx; if(Math.abs(dx)>45){ dx<0?next():prev(); } }, {passive:true});
+
+  // deep-link by hash (#5)
+  var h = parseInt((location.hash||'').replace('#',''),10);
+  if(!isNaN(h) && h>=1 && h<=total) idx = h-1;
+
+  render(true, false);
+})();
+</script>
+</body>
+</html>
