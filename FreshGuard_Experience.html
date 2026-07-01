@@ -628,9 +628,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <p class="kicker reveal">Freeze first to set the head, then unfreeze the top with a 100× smaller learning rate.</p>
         <h2 class="title reveal">Borrow the features, then nudge them.</h2>
         <p class="body reveal r2">A fresh classification head fires large, noisy gradients in its first steps. Leave the powerful backbone trainable at that moment and those gradients tear apart the ImageNet features you imported. So we fine-tune in two deliberate phases.</p>
-        <div class="box cy reveal r3"><span class="coursechip">Part 2 · transfer learning + fine-tuning</span> This is the recipe from class, to the letter: freeze the ImageNet backbone, attach a GlobalAveragePooling → Dense → Dropout → Dense(softmax) head, then unfreeze the layers past a cutoff and fine-tune. We swapped ResNet50 for the lighter MobileNetV2 and dropped the fine-tune LR 100×.</div>
-        <div class="box cy reveal r3"><span class="coursechip">Part 1 · Functional API</span> <b>Built un-nested on purpose.</b> The model is <span class="cy">Model(base.input, out)</span>, the Functional API from class, not a nested Sequential, so the last conv layer <span class="cy">out_relu</span> stays addressable. That single choice is what makes Grad-CAM possible two chapters from now.</div>
-        <p class="note reveal r3">The callbacks from Part 1: EarlyStopping (patience 3, restore best) · ModelCheckpoint (best val_acc) · ReduceLROnPlateau (×0.3, min 1e-6) · TensorBoard. Validation stayed below training throughout, with no overfitting.</p>
+        <div class="box cy reveal r3"><span class="coursechip">Transfer learning + fine-tuning</span> This is the standard recipe, to the letter: freeze the ImageNet backbone, attach a GlobalAveragePooling → Dense → Dropout → Dense(softmax) head, then unfreeze the layers past a cutoff and fine-tune. We swapped ResNet50 for the lighter MobileNetV2 and dropped the fine-tune LR 100×.</div>
+        <div class="box cy reveal r3"><span class="coursechip">Functional API</span> <b>Built un-nested on purpose.</b> The model is <span class="cy">Model(base.input, out)</span>, using the Functional API, not a nested Sequential, so the last conv layer <span class="cy">out_relu</span> stays addressable. That single choice is what makes Grad-CAM possible two chapters from now.</div>
+        <p class="note reveal r3">The callbacks: EarlyStopping (patience 3, restore best) · ModelCheckpoint (best val_acc) · ReduceLROnPlateau (×0.3, min 1e-6) · TensorBoard. Validation stayed below training throughout, with no overfitting.</p>
       </div>
       <div class="stack reveal r2">
         <div class="phases">
@@ -661,7 +661,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <span class="tchip">weakest <b>0.60</b> bellpepper</span>
           <span class="tchip">errors stay <b class="c">intra-type</b></span>
         </div>
-        <div class="reveal r3" style="margin-top:.4rem"><span class="coursechip">Part 2 · evaluation toolkit</span> <span class="note">Measured with the confusion_matrix, classification_report and ROC-AUC tooling from class.</span></div>
+        <div class="reveal r3" style="margin-top:.4rem"><span class="coursechip">Evaluation toolkit</span> <span class="note">Measured with the confusion_matrix, classification_report and ROC-AUC tooling.</span></div>
       </div>
       <div class="stack">
         <div class="viz-frame reveal r2"><span class="badge">hover cells</span>
@@ -788,7 +788,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <p class="body reveal r2">The vision model answers "is this apple fresh now?" A manager needs more: how much will rot next week, so they can order the right amount and staff the markdown surge before it arrives. A compact <span class="cy">LSTM(64) → Dense(7)</span> reads the last 28 days of flagged-item counts and projects the next 7 in one shot.</p>
         <p class="body reveal r3"><b>Feature engineering is the whole game.</b> Each day carries 7 features, six of them calendar. Day-of-week and day-of-year are encoded as <b>sin/cos pairs</b> so Sunday and Monday sit next to each other on a circle, not six apart on a line. The model reads the calendar instead of fighting it.</p>
         <div class="box good reveal r4"><b>Leakage-free.</b> Every calendar feature is known in advance, exactly like exogenous regressors in SARIMAX or Prophet. Feeding tomorrow's day-of-week into today's prediction is not cheating: the calendar for tomorrow is already on the wall.</div>
-        <div class="box cy reveal r4"><span class="coursechip">Part 5 · RNN time-series</span> The same recipe as Conchita's RNN time-series notebook, extended: a <span class="cy">MinMaxScaler</span> fit on the training split only, fixed-length windows fed to an LSTM, predictions returned through <span class="cy">inverse_transform</span>. We made it multivariate with the 6 calendar features and forecast all 7 days in one shot.</div>
+        <div class="box cy reveal r4"><span class="coursechip">RNN time-series</span> The same standard RNN time-series recipe, extended: a <span class="cy">MinMaxScaler</span> fit on the training split only, fixed-length windows fed to an LSTM, predictions returned through <span class="cy">inverse_transform</span>. We made it multivariate with the 6 calendar features and forecast all 7 days in one shot.</div>
       </div>
       <div class="stack">
         <div class="viz-frame reveal r2"><span class="badge">cyclical</span>
@@ -937,14 +937,14 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       </div>
     </div>
     <div class="reveal" style="margin-top:2.4rem">
-      <h3>Mapped to the syllabus</h3>
+      <h3>Architecture coverage</h3>
       <div class="stack-diag" style="margin-top:.8rem">
-        <span class="s"><b>Part 1</b> · ANN, Functional API, callbacks, MinMaxScaler</span>
-        <span class="s"><b>Part 2</b> · CNN + transfer learning &amp; fine-tuning + Grad-CAM</span>
-        <span class="s"><b>Part 5</b> · RNN / LSTM time-series forecasting</span>
-        <span class="s" style="color:var(--ink-3)">Part 4 generative (autoencoders / GANs) · out of scope by design</span>
+        <span class="s"><b>ANN</b> · Functional API, callbacks, MinMaxScaler</span>
+        <span class="s"><b>CNN</b> · transfer learning &amp; fine-tuning + Grad-CAM</span>
+        <span class="s"><b>RNN</b> · LSTM time-series forecasting</span>
+        <span class="s" style="color:var(--ink-3)">Generative (autoencoders / GANs) · out of scope by design</span>
       </div>
-      <p class="note" style="margin-top:.8rem">FreshGuard exercises every <b>predictive</b> architecture from the course, and deliberately stays predictive: generative AI is excluded by the project brief.</p>
+      <p class="note" style="margin-top:.8rem">FreshGuard exercises every <b>predictive</b> architecture in scope, and deliberately stays predictive: generative AI is excluded by the project brief.</p>
     </div>
   </div>
 </section>

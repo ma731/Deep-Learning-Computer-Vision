@@ -1,61 +1,92 @@
-# Project Status — FreshGuard
+# Project Status — FreshGuard: AI Produce Quality Control
 
-_Last updated: 2026-06-13 (LSTM re-run landed: +42.7% MAE over naive; 20-class classifier restored & reconciled with LSTM on one branch)_
+_Last updated: 2026-07-01_
 
 ## Business Use Case
-- **Problem:** Supermarkets lose 4–6% of produce revenue to shrink because decay is caught too late by subjective manual checks. Spain's Law 1/2025 *requires* retailers to discount or donate food approaching expiry — but loose produce has no expiry date, so visual condition is the only signal.
-- **User / customer:** Supermarket floor staff (live scanner) + store manager (dashboard)
-- **Value proposition:** Catch decay a day earlier → mark down instead of bin → recover 4–6% shrink margin. At AUC 0.998 (binary fresh/rotten, 20-class model), false pass-throughs are negligible. Grad-CAM satisfies Law 1/2025 audit requirements by making every grading decision interpretable.
+- **Problem:** Supermarkets lose 4–6% of produce revenue to shrink caught too late by subjective manual
+  checks. Spain's Law 1/2025 requires retailers to discount or donate near-expiry loose produce — but
+  loose produce has no printed expiry date, so visual condition is the only actionable signal.
+- **User / customer:** Supermarket floor staff (live scanner) + store manager (dashboard).
+- **Value proposition:** Catch decay a day earlier → markdown instead of bin → recover 4–6% shrink
+  margin. Every model output maps to a concrete store action: CNN grade → markdown/removal decision;
+  LSTM forecast → next-week ordering/staffing + Law 1/2025 markdown-surge alerts. Grad-CAM satisfies
+  the audit-trail requirement by making every grading decision interpretable.
 
 ## Architecture
-
 **Vision component**
-- **Model:** CNN — MobileNetV2 (transfer learning, fine-tuned)
-- **Approach:** Transfer learning — frozen ImageNet base + Dense head, then top-30-layer fine-tune
-- **Why:** Proven by the 3-model ablation on same data (20 classes): ANN 22.2% → CNN from scratch 73.3% → MobileNetV2 95.6% (4.3× better accuracy, 5.5× fewer parameters than ANN)
-- **Scope:** 10 produce types × {fresh, rotten} = 20 classes. apple/banana/orange/carrot are COCO-detectable (live YOLO detection + tracking); tomato, potato, cucumber, bell pepper, mango, strawberry use a center-crop fallback (classification + Grad-CAM, no box).
-- **Status:** ✅ Trained — `models/freshguard_mobilenetv2.keras` (20-class) + all evaluation figures in `docs/figures/`
+- **Model:** CNN — MobileNetV2 (transfer learning, fine-tuned in two phases).
+- **Approach:** Transfer learning — frozen ImageNet base + Dense head (Phase 1), then top-30-layer
+  fine-tune at 100× lower LR (Phase 2).
+- **Why:** Proven empirically via a 3-model ablation on the same 20-class dataset:
+  ANN 31.9% → CNN-from-scratch 75.0% → MobileNetV2 95.8% (AUC 0.998). The staircase is the deck's
+  primary technical-depth slide — this is a decided, evaluated, current-numbers result.
+- **Status:** 🟢 Trained, tuned, evaluated. 20 classes (fresh/rotten × 10 produce types), 95.8% test
+  accuracy on 4,140 held-out images. YOLOv8n (pretrained, zero-shot) is a preprocessing crop/tracking
+  stage only — MobileNetV2 is the graded model.
 
 **Forecasting component**
-- **Model:** Multivariate LSTM (28-day × 7-feature window → 7-day forecast)
-- **Why:** Daily flagged-item counts have weekly + yearly seasonality + trend; LSTM's gates handle multi-scale dependencies better than vanilla RNN; GRU is simpler but LSTM is the class idiom and adds negligible complexity for this horizon
-- **Status:** ✅ **Trained & winning (Colab re-run 2026-06-13).** Multivariate LSTM beats the one-lag naive by **+42.7% MAE (3.59 vs 6.26) and +43.8% RMSE (4.64 vs 8.25)** on the test set — and lands within ~12% of the irreducible noise floor (≈3.19). Clean training: stopped epoch 51, best weights ~epoch 42, val loss below train loss throughout (no overfitting). Fresh artefacts in `models/` (`spoilage_lstm.keras` input shape `(28,7)`, `spoilage_scaler.pkl`, `scan_history.csv`); backend `build_features`/`simulate_history` verified logic-identical → dashboard reports `lstm_used: true` on next start. The earlier count-only model *lost* to naive (-6.8%); the calendar-feature fix swung it ~49 points — that negative-result-to-fix arc is the strongest technical-depth slide.
+- **Model:** LSTM (decided, not RNN/GRU). Single-layer LSTM(64) + Dense(7), window=28 days, horizon=7 days.
+- **Why:** Compact by design (476 training samples — a bigger model would overfit). Multivariate input
+  (28 days × 7 features: scaled count + dow/doy sin-cos + holiday/promo flags) lets the LSTM anticipate
+  calendar-keyed shocks (Spanish holidays, Law 1/2025 end-of-month markdown blocks) a weekly-lag
+  baseline structurally cannot see. A count-only version *lost* to the naive baseline (-6.8%) before the
+  calendar-feature fix — that negative-result-to-fix arc is the strongest technical-depth story in the
+  project.
+- **Status:** 🟢 Trained, tuned, evaluated. MAE 3.59 / RMSE 4.64 vs seasonal-naive 6.26 / 8.25
+  (+42.7% MAE, +43.8% RMSE), within ~12% of the irreducible noise floor (≈3.19). No overfitting
+  (val loss stayed below train loss).
 
 ## Data
-- **Images:** Kaggle "Fruit and Vegetable Disease (Healthy vs Rotten)" — 20 classes (fresh/rotten × 10 produce: apple, banana, orange, carrot, tomato, potato, cucumber, bell pepper, mango, strawberry), ~27.7k images, 85/15 train/test split → 23,537 train / 4,140 test. All classes ≥480 train images.
-- **Time series:** Simulated (~2 years daily flagged-item counts, seed=42) for a Spanish store: trend + weekly + yearly seasonality + noise, plus multi-day calendar shocks (national holidays, end-of-month promotions, summer demand volatility). Generator kept byte-identical between `backend/forecast.py` and notebook 03; effects are calendar-keyed so the committed `scan_history.csv` is the source of truth.
+- **Images:** Kaggle "Fruit and Vegetable Disease (Healthy vs Rotten)" — 20 classes (fresh/rotten × 10
+  produce: apple, banana, orange, carrot, tomato, potato, cucumber, bell pepper, mango, strawberry),
+  ~27.7k images, 85/15 split → 23,537 train / 4,140 test, all classes ≥480 train images.
+- **Time series:** Simulated 730-day daily series (seed=42) for a Spanish store — weekly + yearly
+  seasonality + growth trend + noise, plus three calendar-keyed multi-day shocks (national holidays,
+  end-of-month promotions, summer demand volatility). Explicitly labelled as simulated (no real store
+  scan data). Chronological 70/15/15 split, `MinMaxScaler` fit on train only. Generator kept
+  byte-identical between `backend/forecast.py::simulate_history()` and notebook 03; effects are
+  calendar-keyed so the committed `scan_history.csv` is the source of truth.
 
 ## Rubric-aligned progress
 | Pillar (weight) | State | Notes |
 |---|---|---|
-| Business Use Case & Value Prop (20%) | 🟢 | Quantified shrink loss, law compliance angle, threshold business logic tied to markdown decisions |
-| Technical Depth & Architecture (25%) | 🟢 | CNN ablation (22→73→96% on 20 classes) + AUC 0.998 + Grad-CAM + confidence-abstain/active-learning. LSTM now beats the honest one-lag naive by +42.7% MAE / +43.8% RMSE and sits within ~12% of the noise floor; negative-result-to-fix arc (count-only lost, calendar features fixed it) is a top-tier depth story. Lead with RMSE + noise-floor framing |
-| MVP Integration & Frontend UX (25%) | 🟢 | Backend + frontend wired; classifier (20-class) + LSTM both exported and live — dashboard shows LSTM forecast, scanner shows fresh/sell-soon/reject/review |
-| Presentation & Team Delivery (20%) | 🔴 | Deck status unknown; no rehearsal logged |
-| Live Demo & Time Management (10%) | 🟡 | App runs; trained LSTM now present so dashboard shows live forecast — full end-to-end rehearsal (with iPhone camera) still pending |
+| Business Use Case & Value Prop (20%) | 🟢 | Quantified shrink loss, regulatory hook (Law 1/2025), Grad-CAM as an audit-trail feature, every output tied to a concrete store action. |
+| Technical Depth & Architecture (25%) | 🟢 | CNN ablation (31.9→75.0→95.8%, AUC 0.998) + Grad-CAM + active-learning review queue. LSTM beats one-lag naive by +42.7% MAE / +43.8% RMSE, near noise floor; negative-result-to-fix arc (count-only lost, calendar features fixed it) is top-tier depth material. Exercises all 3 permitted architectures (ANN/CNN/LSTM). |
+| MVP Integration & Frontend UX (25%) | 🟡 | Backend + frontend wired, both models live (`lstm_used: true`, 20-class classifier). **Risk:** `backend/pipeline.py` and `frontend/app.js` changed in teammates' 2026-07-01 push — not smoke-tested since. Dashboard eval endpoints (`/api/confusion`, `/api/eval`) also read stale JSON vs the current 95.8% model. |
+| Presentation & Team Delivery (20%) | 🟡 | Deck built (`Deep_learning_presentation.html`, 17 slides, all 5 speakers assigned, Q&A defense embedded) — but **two other deck files exist on `main`** with no team alignment on which is authoritative. |
+| Live Demo & Time Management (10%) | 🔴 | 15-minute timing rehearsal not done. Camera setup (iPhone via Camo/Iriun + ngrok for HTTPS) not tested end-to-end. |
 
 ## Done
-- [x] Notebook 03 (LSTM) built, trained, evaluated and exported; one-lag baseline + scaler persistence in place. Spike run exposed the count-only model losing to naive; notebook + backend since re-architected to a multivariate calendar-aware LSTM (`build_features` synced byte-identical) — awaiting re-run for final numbers.
-- [x] Full CNN training pipeline (ANN baseline → CNN from scratch → MobileNetV2 TL)
-- [x] Model artifacts exported: `freshguard_mobilenetv2.keras`, `class_names.json`, `training_summary.json`, `histories.json`
-- [x] Notebook 02b evaluation: training curves, 20×20 confusion matrix, ROC-AUC (0.998), Grad-CAM gallery, severity sanity check
-- [x] FastAPI backend: `/api/predict`, `/api/forecast`, `/api/health`, review queue
-- [x] Frontend: live scan (single + conveyor modes), manager dashboard, camera selector
-- [x] Graceful degradation: app works before LSTM is trained (naive fallback + YOLO-only boxes)
-- [x] All evaluation figures committed to `docs/figures/`
+- [x] Notebook 01 (EDA) — Sebastião Clemente. Merged to main.
+- [x] Notebook 02 (CNN: ANN → CNN-scratch → MobileNetV2 ablation, 20-class, 95.8%, AUC 0.998) — Yaxin Wu (training) + Bassem El Halawani (evaluation, Grad-CAM).
+- [x] Notebook 03 (LSTM, multivariate calendar features, +42.7% MAE vs naive) — Jorge Vildoso.
+- [x] Model artefacts committed on `main`: `freshguard_mobilenetv2.keras` + `class_names.json`;
+      `spoilage_lstm.keras` + `spoilage_scaler.pkl` + `scan_history.csv`.
+- [x] FastAPI backend: two-stage YOLO→MobileNetV2 pipeline, Grad-CAM, forecast + live data flywheel, review queue.
+- [x] Frontend: live scan (single + conveyor), manager dashboard, camera selector.
+- [x] All evaluation figures committed to `docs/figures/`.
+- [x] Presentation deck `Deep_learning_presentation.html` — 17 slides, speaker assignments, auto-play fragments, Q&A defense.
+- [x] TF version pinned (`==2.20.0`), notebook kernel-crash root-caused and fixed, Colab setup cells added.
 
 ## Next steps (prioritized)
-1. [x] **Jorge — LSTM merged to main** (PRs #13, #14). Backend confirmed returning `lstm_used: true` with the new artefacts.
-2. [x] **20-class classifier restored & reconciled with LSTM** (this branch). Cherry-picked the stranded expansion onto LSTM main — zero file conflicts; both models live. PR #12's 20-class push had landed after that PR was already merged, so it never reached main; this fixes that.
-3. [ ] **All — purge stale numbers everywhere** (deck, README, any notes). Forecast: only `3.59 / 4.64 / 6.26 / 8.25 / +42.7% / floor 3.19` survive. Classifier: use the **20-class** numbers `22.2 / 73.3 / 95.6%` + AUC `0.998` (NOT the old 8-class `41/78/97` / `0.9987`).
-4. [ ] **Batao — Notebook 01 (EDA):** Create `notebooks/01_data_exploration_preprocessing.ipynb` — class distribution, sample grids, CLAHE, Canny, augmentation preview
-3. [ ] **Batao — Field test images:** Commit `data/field_test/` for domain-shift study (notebook 02 section 7.5 is waiting)
-4. [ ] **All — Presentation deck:** Build slides; assign speaking parts (all members must speak); time the run
-5. [ ] **Demo rehearsal:** End-to-end live run with LSTM trained; test with phone as camera (Camo/Iriun + ngrok for HTTPS)
+1. [ ] **Smoke-test the app** after teammates' 2026-07-01 push (`backend/pipeline.py`, `frontend/app.js`
+       changed): `uvicorn backend.main:app` + browser test + confirm model loads
+       (`python -c "import tensorflow as tf; m=tf.keras.models.load_model('models/freshguard_mobilenetv2.keras'); print('OK', m.output_shape)"` → expect `OK (None, 20)`).
+2. [ ] **Align team on one presentation file** — `Deep_learning_presentation.html` vs `FreshGuard_Deck.html` vs `FreshGuard_Experience.html`.
+3. [ ] **Regenerate dashboard eval JSONs** (`scripts/eval_model.py` + `scripts/build_eval.py`) so `/api/confusion`, `/api/eval`, `/api/model_report` match the 95.8% headline (Marco).
+4. [ ] **End-to-end demo rehearsal** — live camera (iPhone/Camo/Iriun + ngrok) + dashboard, under the 15-minute clock, all 5 members speaking.
+5. [ ] Field test images (`data/field_test/`) for notebook 02 domain-shift section 7.5 (Sebastião).
 
 ## Open decisions / risks
-- **[FIX APPLIED — needs Colab re-run] Notebook 02 kernel crash (cell 8232b942):** Root cause was a TF version mismatch — model saved on Colab's TF 2.20.0 but loaded under a `<2.20` env (per the old loose `requirements.txt` pin), so BatchNorm `renorm` config keys broke `load_model`; the `strip_renorm` zip-surgery band-aid then segfaulted the kernel on the rewritten model. Fixes (2026-06-16): (1) `requirements.txt` pinned `tensorflow==2.20.0`; (2) cell 8232b942 rewritten to reuse the in-memory `mnv2` (no disk deserialization on a full run) with a clean `compile=False` disk fallback + a gitignored-dataset guard; (3) `strip_renorm`/`freshguard_fixed.keras` hack deleted. **Jorge: re-run notebook top-to-bottom on Colab 2.20.0 → re-commit the model (re-saved under 2.20) + regenerated figures.** Also fixed same session: 8→20-class text/number mismatch throughout (22/73/96%, AUC 0.998, 20×20), and the ROC threshold bug (probability cut-offs were drawn as vertical lines on the FPR axis → now plotted as operating points on the curve).
-- **Q&A landmine — "you engineered the data to win":** The calendar shocks were designed to be learnable from date features and invisible to the weekly lag. Own it, don't hide it. Defense: (1) shocks are real Spanish holidays + Law 1/2025 markdown blocks; (2) calendar features are leakage-free, genuinely known in advance (standard SARIMAX/Prophet practice); (3) the model lands within ~12% of the irreducible noise floor, so it's near-optimal, not just beating a strawman. Rehearse one sentence covering all three.
-- **[RESOLVED] Notebook 03 (LSTM) critical path:** Trained & winning 2026-06-13; artefacts present, backend in sync. Dashboard now shows a live forecast.
-- **Demo camera setup:** iPhone-as-webcam requires Camo/Iriun + ngrok for HTTPS. Test this *before* presentation day.
-- **Presentation timing:** 15 minutes total including Q&A; strictly enforced. With 2 models + demo, budget is tight. Rehearse.
+- **[RISK]** `backend/pipeline.py` / `frontend/app.js` changed in teammates' 2026-07-01 push, unverified since — could break the live demo.
+- **[RISK]** Q&A challenge that simulated LSTM data was engineered to favor the model. Defense already
+  drafted and embedded in the deck (real Spanish holidays + Law 1/2025 blocks, leakage-free calendar
+  features known genuinely in advance, near-noise-floor performance). Lead with RMSE + noise-floor framing.
+- **[RESOLVED]** Deck decided: `FreshGuard_Deck.html` is the submission copy (per Jorge, 2026-07-01). `Deep_learning_presentation.html` and `FreshGuard_Experience.html` are not used — still worth telling the team explicitly so no one presents from the wrong file.
+- **[OPEN]** Camera/ngrok demo rig untested end-to-end.
+- **[RESOLVED]** Notebook 02 kernel crash — root cause was a TF version mismatch (2.20.0 save vs `<2.20`
+  load); fixed by pinning `tensorflow==2.20.0` and removing the `strip_renorm` hack. Confirmed clean on
+  the 2026-06-24 Colab re-run.
+- Full technical history, byte-identical-function constraints, and past-decision rationale live in
+  `CLAUDE.md` (git-excluded, local-only, more detailed than this file) — consult it for the "why" behind
+  any prior change.
