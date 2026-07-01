@@ -189,6 +189,8 @@ h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;font-size:clam
   border-radius:8px;padding:.5rem .7rem}
 .tchip b{color:var(--lime-bright);font-weight:600}
 .tchip .c{color:var(--data)}
+.telem.big{justify-content:center}
+.telem.big .tchip{font-size:.92rem;padding:.7rem .95rem}
 
 /* big metric */
 .metric{font-family:var(--serif);font-weight:600;font-variant-numeric:tabular-nums;line-height:.9;
@@ -790,7 +792,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="box good reveal r4"><b>Leakage-free.</b> Every calendar feature is known in advance, exactly like exogenous regressors in SARIMAX or Prophet. Feeding tomorrow's day-of-week into today's prediction is not cheating: the calendar for tomorrow is already on the wall.</div>
         <div class="box cy reveal r4"><span class="coursechip">RNN time-series</span> The same standard RNN time-series recipe, extended: a <span class="cy">MinMaxScaler</span> fit on the training split only, fixed-length windows fed to an LSTM, predictions returned through <span class="cy">inverse_transform</span>. We made it multivariate with the 6 calendar features and forecast all 7 days in one shot.</div>
       </div>
-      <div class="stack">
+      <div class="stack" style="align-self:center">
         <div class="viz-frame reveal r2"><span class="badge">cyclical</span>
           <canvas id="cv-cal" class="viz" height="130"></canvas>
           <p class="cap">sin/cos encoding: the 7-day cycle is continuous, no fake jump from Sunday to Monday.</p>
@@ -815,16 +817,15 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <h2 class="title reveal">A failure, a diagnosis, a near-optimal fix.</h2>
         <p class="body reveal r2">The first LSTM took only the count series and <b>lost to a trivial naive baseline by 6.8% MAE.</b> A recurrent network beaten by one line of code that copies last week. The instinct is to hide that. The correct move is to interrogate it.</p>
         <p class="body reveal r3">The naive baseline copies last week's matching weekday, so it <b>cannot anticipate a calendar-keyed shock</b>, a holiday surge or end-of-month markdown block. The count-only LSTM was blind to it too, because nobody told it what day it was. The fix was not a bigger network. It was the six calendar features: input <span class="cy">(28,1) → (28,7)</span>.</p>
-        <div class="box good reveal r4"><b>Within 12% of the ceiling.</b> The data injects N(0, σ=4) noise. A perfect predictor still carries one noise draw: MAE ≈ 4·√(2/π) ≈ <b>3.19</b>, irreducible. Our 3.59 sits 0.40 above that floor, under one item a day. The right question is not "did you beat the baseline" but "how close to optimal." Very.</p></div>
-        <div class="telem reveal r4">
+      </div>
+      <div class="viz-frame reveal r2"><span class="badge">scroll the comeback</span>
+        <canvas id="cv-noise" class="viz" height="320"></canvas>
+        <p class="cap">Naive 6.26 → LSTM 3.59 MAE, with the irreducible noise floor at 3.19. The gap left is noise, not weakness.</p>
+        <div class="telem big reveal r4">
           <span class="tchip">MAE <b>3.59</b> vs 6.26 (<b class="c">+42.7%</b>)</span>
           <span class="tchip">RMSE <b>+43.8%</b></span>
           <span class="tchip">noise floor <b>3.19</b></span>
         </div>
-      </div>
-      <div class="viz-frame reveal r2"><span class="badge">scroll the comeback</span>
-        <canvas id="cv-noise" class="viz" height="300"></canvas>
-        <p class="cap">Naive 6.26 → LSTM 3.59, with the irreducible noise floor at 3.19. The gap left is noise, not weakness.</p>
       </div>
     </div>
   </div>
@@ -1357,20 +1358,20 @@ function drawROC(cv,p){ var s=setupCanvas(cv,220),ctx=s.ctx,W=s.w,H=s.h; ctx.cle
 }
 
 /* --- noise floor comeback --- */
-function drawNoise(cv,p){ var s=setupCanvas(cv,300),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
-  var m=46,gw=W-m-30,gh=H-m-40,ox=m,oy=H-m,max=7,X=function(v){return ox+(v/max)*gw;};
+function drawNoise(cv,p){ var s=setupCanvas(cv,320),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);
+  var mLeft=Math.min(190,W*0.42),mBottom=40,ox=mLeft,gw=W-mLeft-30,gh=H-mBottom-46,oy=H-mBottom,max=7,X=function(v){return ox+(v/max)*gw;};
   var e=easeOut(p);
-  // noise floor band 3.19
+  // noise floor band 3.19 (MAE of a perfect predictor: sigma*sqrt(2/pi))
   ctx.fillStyle='rgba(67,229,192,0.08)'; ctx.fillRect(ox,oy-gh,X(3.19)-ox,gh);
   ctx.strokeStyle=C.cyan; ctx.setLineDash([4,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(X(3.19),oy-gh); ctx.lineTo(X(3.19),oy); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle=C.cyan; ctx.font='600 11px "IBM Plex Mono",monospace'; ctx.textAlign='center'; ctx.fillText('noise floor 3.19',X(3.19),oy-gh-8);
-  var bars=[{n:'naive baseline',v:6.26,c:C.mut},{n:'LSTM v1 (count only)',v:6.69,c:C.reject},{n:'LSTM + calendar',v:3.59,c:C.lime}];
-  var bh=34,gap=20,top=14;
+  var bars=[{n:'naive baseline',v:6.26,unit:'MAE',c:C.mut},{n:'LSTM v1 (count only)',v:6.69,unit:'MAE',c:C.reject},{n:'LSTM + calendar',v:3.59,unit:'MAE',c:C.lime}];
+  var bh=34,gap=22,top=14;
   bars.forEach(function(b,i){ var y=top+i*(bh+gap),loc=clamp01((e-i*0.12)/0.6),ee=easeOut(loc);
-    ctx.fillStyle=C.ink; ctx.textAlign='right'; ctx.font='500 11px "IBM Plex Mono",monospace'; ctx.textBaseline='middle'; ctx.fillText(b.n,ox-8,y+bh/2);
+    ctx.fillStyle=C.ink; ctx.textAlign='right'; ctx.font='500 11px "IBM Plex Mono",monospace'; ctx.textBaseline='middle'; ctx.fillText(b.n,ox-10,y+bh/2);
     ctx.fillStyle=C.grid; rr(ctx,ox,y,gw,bh,5); ctx.fill();
     ctx.fillStyle=b.c; if(i===2){ctx.shadowColor=C.lime;ctx.shadowBlur=16*ee;} rr(ctx,ox,y,Math.max((b.v/max)*gw*ee,1),bh,5); ctx.fill(); ctx.shadowBlur=0;
-    ctx.fillStyle=(i===2)?'#0a0e0d':C.ink; ctx.textAlign='left'; ctx.font='600 13px "IBM Plex Mono",monospace'; ctx.fillText((b.v*ee).toFixed(2)+' MAE',ox+10,y+bh/2);
+    ctx.fillStyle=(i===2)?'#0a0e0d':C.ink; ctx.textAlign='left'; ctx.font='600 13px "IBM Plex Mono",monospace'; ctx.fillText((b.v*ee).toFixed(2)+' '+b.unit,ox+10,y+bh/2);
   });
   ctx.fillStyle=C.mut; ctx.font='500 10px "IBM Plex Mono",monospace'; ctx.textAlign='right'; ctx.textBaseline='alphabetic';
   for(var t=0;t<=max;t++){ ctx.fillText(t,X(t),oy+14); }
