@@ -11,7 +11,7 @@ import os
 import shutil
 
 import numpy as np
-from fastapi import Body, FastAPI, File, Query, UploadFile
+from fastapi import Body, FastAPI, File, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -72,13 +72,14 @@ def health():
 
 
 @app.post("/api/predict")
-async def predict(file: UploadFile = File(...),
+async def predict(request: Request, file: UploadFile = File(...),
                   mode: str = Query("single", pattern="^(single|conveyor)$"),
                   explain: bool = Query(False),
                   log: bool = Query(False)):
     frame = _read_image(await file.read())
+    sid = request.client.host if request.client else "default"   # isolate each device's smoothing
     try:
-        return pipeline.process_frame(frame, mode=mode, explain=explain, log=log)
+        return pipeline.process_frame(frame, mode=mode, explain=explain, log=log, session_key=sid)
     except Exception as exc:  # keep the demo alive no matter what
         return JSONResponse(status_code=500, content={"error": str(exc)})
 

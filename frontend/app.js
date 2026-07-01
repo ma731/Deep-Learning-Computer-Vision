@@ -272,10 +272,12 @@ function render(data) {
     setVerdict("idle", "No item in view", "hold produce up to the camera");
     $("details").innerHTML = PLACEHOLDER_DETAILS; $("heatmap-box").hidden = true;
     $("readout-card").hidden = true;
+    window.fgLastVerdict = null;   // voice assistant reads this
   } else if (dets[0] && dets[0].easter) {
     renderEaster(dets[0]);
   } else {
     const m = dets.reduce((a, b) => area(a) >= area(b) ? a : b);
+    window.fgLastVerdict = m;      // voice assistant reads this
     const s = TIERS[m.tier] || TIERS.untrained;
     const sub = m.tier === "review"
       ? `low confidence, flagged for human review`

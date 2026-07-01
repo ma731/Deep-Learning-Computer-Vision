@@ -584,9 +584,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="mosaic" id="mosaic"></div>
         <p class="note">10 produce × {fresh, rotten}. Apple · banana · orange · carrot · tomato · potato · cucumber · bell pepper · mango · strawberry.</p>
         <div class="plates">
-          <div class="plate"><img loading="lazy" src="docs/figures/02_class_distribution.png" alt="class distribution"><span class="lab">balance</span></div>
-          <div class="plate"><img loading="lazy" src="docs/figures/06_augmentation.png" alt="augmentation"><span class="lab">augment</span></div>
-          <div class="plate"><img loading="lazy" src="docs/figures/05_preprocessing.png" alt="preprocessing"><span class="lab">preprocess</span></div>
+          <div class="plate"><img loading="lazy" src="docs/figures/02_class_distribution.png?v=2" alt="class distribution"><span class="lab">balance</span></div>
+          <div class="plate"><img loading="lazy" src="docs/figures/06_augmentation.png?v=2" alt="augmentation"><span class="lab">augment</span></div>
+          <div class="plate"><img loading="lazy" src="docs/figures/05_preprocessing.png?v=2" alt="preprocessing"><span class="lab">preprocess</span></div>
         </div>
       </div>
     </div>
@@ -639,7 +639,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <div class="phase" id="ph1"><div class="ic">🔒</div><div class="tt"><b>Phase 1 · train the head</b><span>Backbone frozen · GAP → Dropout → Dense256 → Dense20 · 5 epochs</span></div><span class="lr">LR 1e-3</span></div>
           <div class="phase open" id="ph2"><div class="ic">🔓</div><div class="tt"><b>Phase 2 · fine-tune the top</b><span>Unfreeze top 30 layers · early layers stay frozen · 4 epochs</span></div><span class="lr">LR 1e-5</span></div>
         </div>
-        <div class="plate"><img loading="lazy" src="docs/figures/curves_mobilenetv2_tl.png" alt="MobileNetV2 training curves"><span class="lab">val ≤ train · no overfit</span></div>
+        <div class="plate"><img loading="lazy" src="docs/figures/curves_mobilenetv2_tl.png?v=2" alt="MobileNetV2 training curves"><span class="lab">val ≤ train · no overfit</span></div>
       </div>
     </div>
   </div>
@@ -697,7 +697,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="box good reveal r4"><b>Essentially free.</b> It reuses activations and gradients from a normal forward/backward pass, so it adds ~0 inference cost. That is what makes the auditability Law 1/2025 implies cheap enough to run on every flagged item.</div>
       </div>
       <div class="stack reveal r2">
-        <div class="plate"><img loading="lazy" src="docs/figures/gradcam_gallery.png" alt="Grad-CAM gallery"><span class="lab">bright = drove the verdict</span></div>
+        <div class="plate"><img loading="lazy" src="docs/figures/gradcam_gallery.png?v=2" alt="Grad-CAM gallery"><span class="lab">bright = drove the verdict</span></div>
         <p class="note">The heatmap is computed from the last convolutional layer the un-nested model exposed in chapter 05. Explainability is not a second model auditing the first; it is the same model, made to point.</p>
       </div>
     </div>
@@ -934,7 +934,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <span class="s"><b>LSTM</b></span>
         </div>
         <p class="note">Plus Grad-CAM explainability, classic-CV robustness, and a vanilla-JS <b>6-tab ops console</b>: Live scan · Manager dashboard · Market prices · Review queue · Model evidence · Lab. No framework.</p>
-        <div class="plate"><img loading="lazy" src="docs/figures/roc_curve.png" alt="ROC curve"><span class="lab">evidence room</span></div>
+        <div class="plate"><img loading="lazy" src="docs/figures/roc_curve.png?v=2" alt="ROC curve"><span class="lab">evidence room</span></div>
       </div>
     </div>
     <div class="reveal" style="margin-top:2.4rem">
@@ -1012,8 +1012,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     </div>
 
     <div class="demo-cta reveal r4">
-      <a class="launch magnetic" href="frontend/index.html" target="_blank" rel="noopener"><span class="dot"></span>Launch the ops console<span class="ar">→</span></a>
-      <p class="note" style="margin-top:.9rem">Opens the real 6-tab app. For the live camera + predictions, run it via FastAPI and it serves at <a href="http://localhost:8000" target="_blank" rel="noopener" style="color:var(--data)">localhost:8000</a>.</p>
+      <a class="launch magnetic" href="http://localhost:8000" target="_blank" rel="noopener"><span class="dot"></span>Launch the ops console<span class="ar">→</span></a>
+      <p class="note" style="margin-top:.9rem">Opens the <b>live</b> app at <span class="cy">localhost:8000</span> (FastAPI backend). Make sure the server is running (<span class="cy">uvicorn</span>) so the camera + predictions work.</p>
     </div>
 
     <div class="footer reveal">
@@ -1092,7 +1092,7 @@ if(!REDUCE && HAS_LENIS && HAS_GSAP){
   items.forEach(function(it){
     var cell=document.createElement('div'); cell.className='cell '+it[1];
     var img=document.createElement('img'); img.loading='lazy';
-    img.src='docs/figures/gradcam/'+it[0]+'.jpg';
+    img.src='frontend/assets/produce/'+it[0]+'.jpg';
     img.onerror=function(){
       img.onerror=null; img.removeAttribute('src');
       cell.style.background = it[1]==='frs' ? 'linear-gradient(135deg,#1a2a12,#0e1a0c)' : 'linear-gradient(135deg,#2a1212,#1a0c0c)';
