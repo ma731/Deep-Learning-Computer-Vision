@@ -65,8 +65,8 @@
   panel.className = "fg-voice-panel";
   panel.innerHTML = `<div class="fg-voice-k" id="fg-voice-state">voice · ready</div>
     <div class="fg-voice-heard" id="fg-voice-heard"></div>
-    <div class="fg-voice-reply" id="fg-voice-reply">Click the mic and say “start the camera”, “scan this”, or “open the dashboard”.</div>
-    <div class="fg-voice-hint">Try: “scan this” · “how much have we recovered” · “market prices” · “narrate on”</div>`;
+    <div class="fg-voice-reply" id="fg-voice-reply">Click the mic, then say “Hey FreshGuard, introduce yourself”, “scan this”, or “explain the model”.</div>
+    <div class="fg-voice-hint">“Hey FreshGuard” to greet · “explain the forecast” · “narrate on” · “thank you FreshGuard” to stop</div>`;
   document.body.appendChild(panel);
   document.body.appendChild(fab);
   const stateEl = () => $("fg-voice-state"), heardEl = () => $("fg-voice-heard"), replyEl = () => $("fg-voice-reply");
@@ -126,18 +126,73 @@
     }
   }
 
+  /* ---------------- the assistant's own script ---------------- */
+  const NAME = /\b(hey |ok |okay |yo |hi |hello )?fresh ?guard\b/;
+  function revealApp() { const a = $("app"); if (a && a.hidden) { const he = $("hero-enter"); if (he) he.click(); } }
+  function introduce() {
+    revealApp(); click("tab-scan");
+    return say("Hi, I'm FreshGuard — an AI produce quality inspector. I use a two-stage computer-vision pipeline: YOLO finds the item, then a fine-tuned MobileNet grades it fresh, sell-soon, or reject at 95.8 percent accuracy, and an LSTM forecasts spoilage a week ahead so shops mark down instead of binning. Hold produce up and say “scan this”, or ask me to explain the model, the forecast, or the business.");
+  }
+  const PARTS = {
+    pipeline:  "FreshGuard is a two-stage vision pipeline. First, YOLO version 8 detects and tracks the item in frame. Then a fine-tuned MobileNet sorts it into one of twenty classes — ten produce types, each fresh or rotten — and maps that to a decision: fresh, sell soon, or reject. Alongside, an LSTM forecasts spoilage a week out, and classic OpenCV measures how much of the surface has decayed. Ask about the detector, the classifier, or the forecast to go deeper.",
+    detect:    "Stage one is detection. A pretrained YOLO version 8 nano model finds the produce, and on a conveyor it tracks each item with ByteTrack so every piece is graded exactly once. For produce it doesn't know from its training set, we crop to the most colourful region and hand that to the classifier instead.",
+    classifier:"Stage two is the classifier: MobileNet version 2, fine-tuned with transfer learning. In our ablation a plain neural net scored 32 percent, a convolutional net built from scratch 75, and MobileNet reached 95.8 percent — with three times fewer parameters. At inference we average a crop and its mirror, and vote over fifteen frames, for a steady live read.",
+    forecast:  "The forecasting head is an LSTM recurrent network. It reads the recent spoilage trend and predicts the next seven days, so a shop knows what to reorder and what to mark down first. It cuts the error to about 3.6 units — roughly 43 percent better than a naive baseline, and close to the noise floor of the data.",
+    business:  "The business case: about a tenth of fresh produce is lost to spoilage. By catching decay a day early, a shop marks the item down and recovers most of its value instead of binning it. It also supports Spain's Law one of twenty twenty-five, since loose produce carries no expiry label. That's the value-saved counter you watch tick up as I grade.",
+    evaluation:"On evaluation: 95.8 percent overall accuracy, and a fresh-versus-rotten area under the curve of 0.99 across four thousand test images. The weakest class is rotten bell pepper, at 0.60 recall. Anything the model isn't sure about goes to a review queue and is folded into the next training run.",
+    data:      "The dataset is twenty classes: ten produce types — apple, banana, orange, carrot, tomato, potato, cucumber, bell pepper, mango and strawberry — each in a fresh and a rotten version. Every image is white-balanced first, to neutralise warm store lighting before it reaches the model.",
+    team:      "The team: Marco on integration and this demo, Sebastião on data and preprocessing, Yaxin on the core model and ablation, Bassem on evaluation and explainability, and Jorge on forecasting and the dashboard.",
+    course:    "By design it uses all three architectures from the course: a plain neural-net baseline from Part one, a convolutional net with transfer learning from Part two, and an LSTM time-series model from Part five."
+  };
+
   /* ---------------- command grammar ---------------- */
   function handle(raw) {
-    const t = (raw || "").toLowerCase().trim();
+    let t = (raw || "").toLowerCase().trim();
     if (!t) return;
     showHeard(raw.trim());
+
+    // --- stop phrases: "thank you FreshGuard", "that's it", "goodbye" ---
+    const bye = /\b(thank you|thanks|thank u|cheers|goodbye|good ?bye|bye now|see you)\b/;
+    if (/\bstop listening\b/.test(t)
+        || /^that('?s| is| will be)?\s*(it|all|everything)\b/.test(t)
+        || (NAME.test(t) && bye.test(t))
+        || /\bgood ?bye\b.*\bfresh ?guard\b/.test(t)) {
+      stopListening();
+      return say(bye.test(t) ? "You're welcome — good luck with the presentation!"
+                             : "Okay, I'll stop. Tap me any time.");
+    }
+
+    // --- wake word "Hey FreshGuard …" — greet if called alone, else run the rest ---
+    if (NAME.test(t)) {
+      const rest = t.replace(NAME, " ").replace(/\s+/g, " ").trim().replace(/^(please|can you|could you)\s+/, "");
+      if (!rest || /^(hi|hey|hello|you there|are you (there|listening)|listen up)$/.test(rest)) return introduce();
+      t = rest;
+    }
 
     // if we're still on the landing hero, step into the console first so the
     // tabs/scanner actually exist and are visible for the command below.
     const app = $("app");
-    if (app && app.hidden && !/\b(help|what can you|who are you|thank|thanks)\b/.test(t)) {
+    if (app && app.hidden && !/\b(help|what can you)\b/.test(t)) {
       const he = $("hero-enter"); if (he) he.click();
     }
+
+    // --- introduce / full overview ---
+    if (/\b(introduce|present)\s+(yourself|your ?self)\b/.test(t) || /\bwho are you\b/.test(t)
+        || /\b(overview|the pitch|pitch it|elevator|whole (thing|project)|in a nutshell|sum(marise|marize) (everything|the project|it all))\b/.test(t)) {
+      return introduce();
+    }
+
+    // --- part-by-part summaries (spoken; also hop to the relevant tab) ---
+    const wantsSummary = /\b(explain|tell me about|summar|walk me through|talk about|describe|what('?s| is) (the|your)|how does .*(work)|go deeper|deep dive|break down|more about)\b/.test(t);
+    if (/\b(pipeline|architecture|two.?stage)\b/.test(t) || /\bhow (does|do) (it|you|this|the (model|system|pipeline)) work\b/.test(t)) { click("tab-model"); return say(PARTS.pipeline); }
+    if (/\b(yolo|detector|detection|tracking|bytetrack|bounding box)\b/.test(t)) { click("tab-scan"); return say(PARTS.detect); }
+    if (/\b(mobile ?net|classifier|the cnn|transfer learning|fine.?tun\w*|ablation)\b/.test(t) || (wantsSummary && /\bmodel\b/.test(t))) { click("tab-model"); return say(PARTS.classifier); }
+    if (/\b(lstm|\brnn\b|forecast|spoilage|reorder|time series|demand)\b/.test(t)) { click("tab-dashboard"); return say(PARTS.forecast); }
+    if (/\b(business|value prop|roi|shrink|compliance|law 1|waste)\b/.test(t) && (wantsSummary || /\b(case|model|prop|matter|why|about)\b/.test(t))) { click("tab-market"); return say(PARTS.business); }
+    if (/\b(evaluation|metrics|performance|confusion|weakest class|accuracy)\b/.test(t) || /\bhow (accurate|good|well)\b/.test(t)) { click("tab-model"); return say(PARTS.evaluation); }
+    if (wantsSummary && /\b(data|dataset|classes|images|training set)\b/.test(t)) { return say(PARTS.data); }
+    if (/\b(the team|who (made|built|did)|team members)\b/.test(t)) { return say(PARTS.team); }
+    if (/\b(course|syllabus|three architectures|deliverable)\b/.test(t)) { return say(PARTS.course); }
 
     // grade + read the current verdict (check before the plain "scan" nav word)
     if (/\b(scan|grade|check|analy[sz]e|inspect|read)\b.*\b(this|it|now|item|fruit|produce|thing)\b/.test(t)
@@ -154,7 +209,7 @@
     }
 
     // narration toggle (auto-announce each new verdict)
-    if (/\b(narrat|auto ?announce|commentary|keep talking)\b/.test(t)) {
+    if (/\b(narrat\w*|auto.?announce|commentary|keep (talking|going)|call (it|them) out|announce (each|every))\b/.test(t)) {
       if (/\b(off|stop|quiet|silence|disable)\b/.test(t)) { narrate = false; return say("Narration off."); }
       narrate = true; lastNarrated = "";
       return say("Narration on. I'll call out each item as you scan it.");
@@ -191,15 +246,12 @@
       const r = (($("k-recovered") || {}).textContent || "€0").replace(/[€,]/g, "").trim();
       return say(`So far you've saved ${r || "0"} euros — recovered margin on sell-soon items, plus the loss prevented by catching rejects before they hit the shelf.`);
     }
-    if (/\b(how (accurate|good)|accuracy|how well)\b/.test(t)) {
-      return say("The MobileNet classifier reaches 95.8 percent accuracy, with a fresh-versus-rotten area under the curve of 0.99. It beat a plain neural net at 32 percent and a from-scratch convolutional net at 75.");
-    }
     if (/\b(how many|scanned|count)\b/.test(t)) {
       const n = (($("k-scanned") || {}).textContent || "0").trim();
       return say(`You've scanned ${n} item${n === "1" ? "" : "s"} this session.`);
     }
-    if (/\b(what (are you|is this)|who are you|what can you do|help|commands|options)\b/.test(t)) {
-      return say("I'm FreshGuard's voice assistant. Say: start the camera, scan this, single or conveyor mode, open the dashboard, market prices, the review queue, model metrics, how much have we recovered, or how accurate is the model.");
+    if (/\b(what (are you|is this)|what can you do|help|commands|options)\b/.test(t)) {
+      return say("Say “Hey FreshGuard” and I'll introduce myself. I can scan this, start or stop the camera, switch single or conveyor mode, open any tab, and explain each part — the pipeline, the detector, the classifier, the forecast, the business, or the evaluation. Ask how much we've saved, or say “thank you FreshGuard” to stop me.");
     }
     if (/\b(thank|thanks|cheers|nice|great|awesome)\b/.test(t)) return say("Happy to help.");
 
@@ -267,6 +319,9 @@
 
   // stop listening cleanly if the tab is hidden (saves the mic light)
   document.addEventListener("visibilitychange", () => { if (document.hidden && listening) stopListening(); });
+
+  // small public hook: drive the assistant by text (e.g. a button, or a test)
+  window.fgVoice = { ask: (text) => handle(text), say, introduce };
 
   console.log("[FreshGuard] voice assistant ready", SR ? "(speech-to-text on)" : "(TTS only — no SpeechRecognition)");
 })();
