@@ -36,6 +36,7 @@ teammate, a professor, or a future employer can understand the whole project —
    - [4.4 Model 3 — MobileNetV2 transfer learning](#44-model-3--mobilenetv2-transfer-learning-the-core-model)
    - [4.5 Data pipeline and augmentation](#45-data-pipeline-and-augmentation)
    - [4.6 Results, and what they teach us](#46-results-and-what-they-teach-us)
+   - [4.6b A Vision Transformer, compared honestly](#46b-a-vision-transformer-compared-honestly-nov-2026)
    - [4.7 Stage 1 — YOLOv8 detection + tracking](#47-stage-1--yolov8-detection--tracking)
    - [4.8 From softmax to a business decision](#48-from-softmax-to-a-business-decision)
    - [4.9 Robustness without retraining](#49-robustness-without-retraining)
@@ -52,6 +53,7 @@ teammate, a professor, or a future employer can understand the whole project —
 12. [Train everything from scratch](#12-train-everything-from-scratch)
 13. [Seeding demo data](#13-seeding-demo-data)
 14. [Configuration](#14-configuration)
+14b. [Tests, CI and drift monitoring](#14b-tests-ci-and-drift-monitoring)
 15. [Honest limitations and caveats](#15-honest-limitations-and-caveats)
 16. [Roadmap](#16-roadmap)
 17. [Team and academic mapping](#17-team-and-academic-mapping)
@@ -354,13 +356,17 @@ notebook.
 
 - **The ablation (the headline):** 31.9% → 75.0% → 95.8%. Stored in
   `models/training_summary.json`, charted in `docs/figures/model_comparison.png`.
-- **Binary fresh-vs-rotten ROC-AUC = 0.9938** (`models/eval.json`,
-  `docs/figures/roc_curve.png`). For the business, fresh-vs-rotten is the
+- **Binary fresh-vs-rotten ROC-AUC = 0.996** on the balanced 70-per-class
+  sample the app charts (`models/eval.json`), 0.998 on the full 4,140-image test
+  set (`models/cnn_eval_cached.json`). For the business, fresh-vs-rotten is the
   decision that matters most, and the model is near-perfect at it.
 - **20×20 confusion matrix** (`docs/figures/confusion_matrix.png`, and an
   interactive version in the app's Model tab) shows where it slips. The weakest
-  class is **rotten bell pepper (recall ~0.60)** — a useful honest finding: bell
-  peppers wrinkle rather than discolour, so "rotten" is visually subtler.
+  class is **rotten bell pepper (recall 0.73 on the balanced sample, 0.72 on the
+  full test set)**. Bell peppers wrinkle rather than discolour, so "rotten" is
+  visually subtler. (Earlier copies of this README said 0.60 and AUC 0.9938: those
+  came from the model before the 24 June retrain. The eval JSONs were regenerated
+  with the shipped model on 11 Nov 2026.)
 - **Overfitting evidence:** training/validation curves per model
   (`docs/figures/curves_*.png`) — the from-scratch CNN shows the train/val gap
   that motivated dropout + augmentation; the transfer model generalises tightly.
@@ -372,6 +378,73 @@ notebook.
 > only to show the *qualitative* gap live without a long training wait. The real
 > ablation numbers (31.9 / 75.0 / 95.8) come from the full `train_models.py`.
 > Don't confuse the two.
+
+### 4.6b A Vision Transformer, compared honestly (Nov 2026)
+
+We fine-tuned a small Vision Transformer (DeiT-tiny, `timm`, ImageNet-1k weights)
+on the same produce data and scored it next to the shipped MobileNetV2. Same 4,140
+test photos, same 224x224 resize (`scripts/cache_dataset.py`), the same 15%
+validation split as `train_models.py` for picking the epoch, and one look at the
+test set at the end.
+
+| | MobileNetV2 (shipped) | DeiT-tiny |
+|---|---:|---:|
+| Test accuracy | 95.8% | **98.4%** |
+| Macro F1 | 0.938 | **0.973** |
+| Fresh vs rotten AUC | 0.998 | **0.999** |
+| Rotten bell pepper recall | 0.72 | **0.97** |
+| Weakest class | rotten bell pepper 0.72 | rotten carrot 0.88 |
+| Parameters | **2.6M** | 5.5M |
+| Compute per photo | **0.30 GFLOPs** | 1.07 GFLOPs |
+| CPU time per photo (PyTorch, 4 threads, batch 1) | **19.7 ms** | 32.2 ms |
+| Weights on disk | 25.9 MB (.keras) | 22.2 MB (fp32) |
+
+*Sources:* `models/transformer_compare.json` (merged), `models/cnn_eval_cached.json`,
+`models/transformer_deit_tiny_patch16_224.json`. CPU times use the same runtime for
+both architectures (timm's MobileNetV2 vs DeiT-tiny), because timing a Keras model
+against a PyTorch model mostly measures the framework.
+
+**Is the gap real?** On the paired test predictions the transformer is right on 144
+photos the CNN gets wrong, and the CNN on 36 the transformer gets wrong (McNemar
+p = 1.7e-16). It is slightly worse on three fresh classes (fresh tomato 0.96 vs
+0.98, fresh bell pepper and fresh potato by about one point each).
+
+**Variants** (same data, same protocol):
+
+| Variant | Test acc. | Macro F1 | Rotten bell pepper | Fine-tune time |
+|---|---:|---:|---:|---:|
+| DeiT-tiny, frozen backbone (head only) | 93.7% | 0.916 | 0.78 | 1.1 min |
+| DeiT-tiny, full fine-tune | 98.4% | 0.973 | 0.97 | 2.8 min |
+| DeiT-small, full fine-tune | 98.9% | 0.979 | 0.99 | 13.9 min* |
+
+Trained on the laptop's RTX 4060 (8 GB), 6 epochs, AdamW with a one-cycle schedule,
+fp16, label smoothing 0.1 (`scripts/train_vit.py`). *DeiT-small's time is inflated by
+another job sharing the GPU during epoch 3. DeiT-small buys 0.5 points for 4x the
+compute of DeiT-tiny, so DeiT-tiny is the fair comparison (closest in size to
+MobileNetV2). The MobileNetV2 fine-tune time (61 min) came from a different machine,
+so we do not compare training time.
+
+**Why a transformer helps here.** A CNN sees the photo through small sliding
+windows and only relates distant regions after many layers. A ViT cuts the image into
+16x16 patches and lets every patch attend to every other patch from the first layer.
+Rot on a bell pepper is a wrinkle in one place and a soft patch in another; seeing
+both at once is what self-attention is good at, and the per-class recall shows it.
+
+**What it costs, and when the CNN still wins.** 2.1x the parameters, 3.6x the
+compute and 1.6x the CPU time per photo. Attention is quadratic in the number of
+patches and has no built-in sense of locality, so ViTs need large-scale pretraining
+(the frozen-backbone row shows features alone are not enough). On a phone with no GPU,
+or with a strict latency budget per crate, MobileNetV2 is still the sensible
+default; on a store PC or a small edge GPU, DeiT-tiny is worth it. The app still
+serves MobileNetV2 (its Grad-CAM, TTA and thresholds are tuned for it); swapping the
+grader is a deliberate next step, not done here.
+
+**And for the forecast?** We also tried a small temporal transformer (2 encoder
+blocks, 4 heads, d=32, about the LSTM's parameter count) on notebook 03's exact
+protocol (`scripts/forecast_transformer.py`, `models/forecast_compare.json`). MAE on
+the test windows: seasonal naive 6.26, **LSTM 3.59**, transformer 4.24 (mean of 3
+seeds: 4.20, 4.21, 4.30). With about 480 training windows the LSTM's built-in
+sequential bias wins, so the LSTM stays.
 
 ### 4.7 Stage 1 — YOLOv8 detection + tracking
 
@@ -632,7 +705,8 @@ electric-lime accent, mono telemetry readouts). It is intentionally built to
 - **✅ Review** — the active-learning queue: low-confidence crops the model
   abstained on, each with a relabel dropdown + submit.
 - **🧠 Model** — the evidence room: the racing ablation bars, animated
-  ANN/CNN/RNN explainer diagrams, the ROC curve (AUC 0.9938) + calibration plot,
+  ANN/CNN/RNN explainer diagrams, the ROC curve (AUC 0.996) + calibration plot,
+  a CNN vs Vision Transformer comparison,
   the weakest-class callout, and an interactive 20×20 confusion matrix.
 - **🔬 Lab** — play with the model: threshold-tuning decision-space, live
   model-compare (ANN/CNN/MobileNetV2 on one frame), an augmentation playground, a
@@ -755,6 +829,8 @@ frontend on one origin.
 | GET  | `/api/confusion` | 20×20 confusion matrix counts |
 | GET  | `/api/eval` | ROC + calibration + weakest class |
 | GET  | `/api/model_report` | ablation summary + class list + per-class metrics |
+| GET  | `/api/transformer` | MobileNetV2 vs Vision Transformer on the same test set (+ forecast check) |
+| GET  | `/api/drift?demo=` | monthly confidence and produce-mix drift, with alerts and an action |
 | GET  | `/api/forecast` | LSTM 7-day spoilage forecast + action plan |
 | GET  | `/api/forecast/produce` | per-produce 7-day demand + reorder qty |
 | GET  | `/api/market?refresh=` | live/reference produce prices |
@@ -851,6 +927,42 @@ is internally consistent. Any grades you make in the app accumulate on top.
 
 ---
 
+## 14b. Tests, CI and drift monitoring
+
+**Tests.** `pytest` runs 48+ tests in about 20 seconds with no model downloads:
+TensorFlow and YOLO are stubbed in `tests/conftest.py` and the classifier is a fake
+that returns a fixed softmax. They cover preprocessing (shape, range, BGR to RGB,
+flip TTA), the class mapping and grading tiers, the metric code and loaders, every
+JSON endpoint plus `/api/predict` on a small fixture image, the forecast shapes and
+the drift monitor. Two tests guard this README: the accuracy and AUC quoted here
+must match `models/*.json`.
+
+```bash
+pip install -r requirements-ci.txt
+ruff check backend scripts tests
+pytest -q
+```
+
+**CI.** `.github/workflows/ci.yml` runs lint, tests and a drift smoke run on every
+push and pull request (Python 3.12, light deps only, under a minute).
+
+**Drift monitor** (`backend/drift.py`, `GET /api/drift`, Dashboard card). There are
+no labels in production, so it watches the two signals we do have, month by month,
+against the first three months of logged scans:
+
+- *Confidence drift:* the share of scans below the 0.70 abstain threshold. Alert at
+  1.5x the baseline share.
+- *Mix drift:* population stability index of the predicted produce/tier mix. Alert
+  at PSI 0.20.
+
+Each alert comes with an action (check camera and lighting, relabel the review queue
+and fine-tune; or re-check per-class recall on the new mix, with a hand spot-check
+when bell pepper, our weakest class, is the one growing). Months with fewer than 30
+scans never alert. On the synthetic year (`python backend/drift.py --demo`) it
+catches the injected change in the right month and stays quiet on a stable year.
+
+---
+
 ## 15. Honest limitations and caveats
 
 A good project knows its own weak spots:
@@ -869,6 +981,11 @@ A good project knows its own weak spots:
 - **The € figures in projections are illustrative**, not measured savings.
 - **YOLO detects only 4 of the 10 produce types** (COCO limitation); the other 6
   use a center-crop fallback (grade + Grad-CAM, but no bounding box).
+- **The live demo pins four props.** `DEMO_LOCK` in `backend/pipeline.py` fixes the
+  verdict for the banana, apple, orange and cucumber used on stage, so the demo reads
+  the same every time. Set it to `False` to see the raw model. A test keeps this visible.
+- **The drift monitor has no labels.** It flags that the inputs changed, not that
+  accuracy dropped; the review queue is how we would confirm.
 
 ---
 

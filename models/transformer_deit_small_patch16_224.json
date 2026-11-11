@@ -1,0 +1,108 @@
+{
+  "model": "deit_small_patch16_224.fb_in1k",
+  "framework": "torch 2.11.0+cu128 + timm 1.0.31",
+  "trained_on": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "frozen_backbone": false,
+  "epochs": 6,
+  "best_val_accuracy": 0.9788,
+  "train_minutes": 13.9,
+  "params": 21673364,
+  "size_mb_fp32": 86.8,
+  "cpu_latency_ms_batch1": 99.1,
+  "test_full": {
+    "n": 4140,
+    "accuracy": 0.9891,
+    "macro_f1": 0.9791,
+    "auc_fresh_vs_rotten": 0.9987,
+    "per_class_recall": {
+      "fresh_apple": 1.0,
+      "fresh_banana": 1.0,
+      "fresh_bellpepper": 0.9341,
+      "fresh_carrot": 0.9891,
+      "fresh_cucumber": 1.0,
+      "fresh_mango": 1.0,
+      "fresh_orange": 0.9904,
+      "fresh_potato": 0.9239,
+      "fresh_strawberry": 1.0,
+      "fresh_tomato": 0.9667,
+      "rotten_apple": 0.9932,
+      "rotten_banana": 1.0,
+      "rotten_bellpepper": 0.9886,
+      "rotten_carrot": 0.907,
+      "rotten_cucumber": 0.9659,
+      "rotten_mango": 0.9881,
+      "rotten_orange": 1.0,
+      "rotten_potato": 0.9425,
+      "rotten_strawberry": 1.0,
+      "rotten_tomato": 0.9888
+    },
+    "weakest": {
+      "class": "rotten_carrot",
+      "recall": 0.907
+    }
+  },
+  "test_balanced_70": {
+    "n": 1400,
+    "accuracy": 0.9786,
+    "macro_f1": 0.9785,
+    "auc_fresh_vs_rotten": 0.9969,
+    "per_class_recall": {
+      "fresh_apple": 1.0,
+      "fresh_banana": 1.0,
+      "fresh_bellpepper": 0.9286,
+      "fresh_carrot": 0.9857,
+      "fresh_cucumber": 1.0,
+      "fresh_mango": 1.0,
+      "fresh_orange": 0.9857,
+      "fresh_potato": 0.9286,
+      "fresh_strawberry": 1.0,
+      "fresh_tomato": 0.9857,
+      "rotten_apple": 1.0,
+      "rotten_banana": 1.0,
+      "rotten_bellpepper": 0.9857,
+      "rotten_carrot": 0.8857,
+      "rotten_cucumber": 0.9571,
+      "rotten_mango": 1.0,
+      "rotten_orange": 1.0,
+      "rotten_potato": 0.9429,
+      "rotten_strawberry": 1.0,
+      "rotten_tomato": 0.9857
+    },
+    "weakest": {
+      "class": "rotten_carrot",
+      "recall": 0.8857
+    }
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.1624,
+      "val_accuracy": 0.9643
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.6433,
+      "val_accuracy": 0.9734
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.6139,
+      "val_accuracy": 0.97
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.6031,
+      "val_accuracy": 0.9785
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.5985,
+      "val_accuracy": 0.9785
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.5972,
+      "val_accuracy": 0.9788
+    }
+  ]
+}

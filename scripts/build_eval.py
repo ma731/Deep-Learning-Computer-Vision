@@ -2,11 +2,15 @@
 the weakest per-class recall → models/eval.json (for the Model-tab charts).
 Run:  .venv\\Scripts\\python.exe scripts/build_eval.py
 """
-import json, pathlib, random
-import cv2, numpy as np
+import json
+import pathlib
+import random
+
+import cv2
+import numpy as np
 import tensorflow as tf
+from sklearn.metrics import auc, roc_curve
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-from sklearn.metrics import roc_curve, auc
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODELS, TEST = ROOT / "models", ROOT / "data" / "dataset" / "test"

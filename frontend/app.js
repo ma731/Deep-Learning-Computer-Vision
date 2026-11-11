@@ -682,6 +682,7 @@ async function loadModelReport() {
     </div>`;
   }).join("");
   raceBars();
+  renderTransformer();
   renderConfusion();
   renderEval();
   const pc = $("pc-wrap");
@@ -695,6 +696,91 @@ async function loadModelReport() {
       pc.innerHTML = `<p class="pc-empty small">Per-class precision/recall generates after the retrain finishes.</p>`;
     }
   }
+}
+
+/* ---------------- CNN vs Vision Transformer ---------------- */
+async function renderTransformer() {
+  const box = $("vs");
+  let d; try { d = await (await fetch(`${API}/api/transformer`)).json(); } catch (e) { return; }
+  if (!d || !d.cnn || !d.vit) { box.hidden = true; return; }
+  const c = d.cnn, v = d.vit, cf = c.test_full, vf = v.test_full;
+  const rt = d.same_runtime_cpu || {};
+  const rc = rt.mobilenetv2 || {}, rv = rt.deit_tiny || {};
+  const pct = (x) => (x * 100).toFixed(1) + "%";
+  const mil = (x) => (x / 1e6).toFixed(1) + "M";
+  // [label, cnn, vit, fmt, higherIsBetter, startsGroup]
+  const rows = [
+    ["Test accuracy", cf.accuracy, vf.accuracy, pct, true],
+    ["Macro F1", cf.macro_f1, vf.macro_f1, (x) => x.toFixed(3), true],
+    ["Fresh vs rotten AUC", cf.auc_fresh_vs_rotten, vf.auc_fresh_vs_rotten, (x) => x.toFixed(3), true],
+    ["Rotten bell pepper recall", cf.per_class_recall.rotten_bellpepper, vf.per_class_recall.rotten_bellpepper, pct, true],
+    ["Parameters", c.params, v.params, mil, false, true],
+    ["Compute per photo", rc.gflops, rv.gflops, (x) => x.toFixed(2) + " GFLOPs", false],
+    ["CPU time per photo", rc.cpu_ms_batch1, rv.cpu_ms_batch1, (x) => x.toFixed(0) + " ms", false],
+  ].filter((r) => r[1] != null && r[2] != null);
+  const name = v.model.startsWith("deit_tiny") ? "DeiT-tiny" : v.model.split("_")[0];
+  $("vs-table").innerHTML = $("vs-table").querySelector("caption").outerHTML +
+    `<thead><tr><th></th><th scope="col"><b>MobileNetV2</b>CNN</th><th scope="col"><b>${name}</b>Transformer</th></tr></thead><tbody>` +
+    rows.map(([lab, a, b, f, up, gap]) => {
+      const aWin = up ? a > b : a < b, bWin = up ? b > a : b < a;
+      return `<tr${gap ? ' class="vs-gap"' : ""}><th scope="row">${lab}</th>
+        <td class="${aWin ? "best" : ""}">${f(a)}</td><td class="${bWin ? "best" : ""}">${f(b)}</td></tr>`;
+    }).join("") + "</tbody>";
+
+  const m = d.mcnemar_cnn_vs_vit;
+  $("vs-test").innerHTML = `${d.test_images.toLocaleString()} test photos, same 224 px resize, each model picked on its validation split. ` +
+    (m ? `The transformer gets ${m.only_vit_right} photos right that the CNN misses; the reverse happens ${m.only_cnn_right} times (McNemar p ${m.p_value < 1e-4 ? "< 0.0001" : "= " + m.p_value}). ` : "") +
+    `CPU times measured in one runtime (PyTorch, 4 threads, one photo at a time) so the framework does not decide the result.`;
+
+  const ratio = rv.cpu_ms_batch1 && rc.cpu_ms_batch1 ? (rv.cpu_ms_batch1 / rc.cpu_ms_batch1) : null;
+  if (ratio && rv.gflops && rc.gflops) {
+    $("vs-cost").textContent = `On this data the cost is ${(v.params / c.params).toFixed(1)}x the parameters, ` +
+      `${(rv.gflops / rc.gflops).toFixed(1)}x the compute and ${ratio.toFixed(1)}x the CPU time per photo. ` +
+      `Attention is quadratic in the number of patches and has no built-in idea of locality, so it leans on ImageNet pretraining.`;
+  }
+  const fc = d.forecast;
+  if (fc) {
+    $("vs-when").textContent = `Tiny data, a phone with no GPU, or a hard latency budget per crate. For the weekly forecast a small ` +
+      `time-series transformer scored MAE ${fc.transformer_mae_mean} against the LSTM's ${fc.lstm_mae} (naive ${fc.seasonal_naive_mae}) ` +
+      `on about 480 training windows, so the LSTM stays.`;
+  }
+  box.hidden = false;
+  drawRecallChart(cf.per_class_recall, vf.per_class_recall);
+}
+
+let vsData = null, vsResize = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(vsResize);
+  vsResize = setTimeout(() => { if (vsData && !$("vs").hidden) drawRecallChart(...vsData); }, 150);
+});
+
+function drawRecallChart(rc, rv) {
+  vsData = [rc, rv];
+  const keys = Object.keys(rc).filter((k) => rc[k] != null && rv[k] != null)
+    .sort((a, b) => rc[a] - rc[b]);
+  const W = Math.max(290, Math.round($("vs-chart").clientWidth || 640)), narrow = W < 480;
+  const L = narrow ? 112 : 138, R = narrow ? 58 : 70, top = 6, rowH = 22, lo = 0.6;
+  const H = top + keys.length * rowH + 22;
+  const x = (r) => L + (Math.max(r, lo) - lo) / (1 - lo) * (W - L - R);
+  const ticks = [0.6, 0.7, 0.8, 0.9, 1.0];
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  s += ticks.map((t) => `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${H - 18}"/>` +
+    `<text class="axis" x="${x(t)}" y="${H - 4}" text-anchor="middle">${t === 0.6 ? "0.6" : t.toFixed(1)}</text>`).join("");
+  keys.forEach((k, i) => {
+    const y = top + i * rowH + rowH / 2, a = rc[k], b = rv[k];
+    const hot = Math.abs(b - a) >= 0.05, worse = b < a;
+    const label = k.replace("_", " ");
+    s += `<g class="row${hot ? " hot" : ""}" tabindex="0"><title>${label}: MobileNetV2 ${(a * 100).toFixed(1)}%, transformer ${(b * 100).toFixed(1)}%</title>
+      <rect class="hit" x="0" y="${y - rowH / 2}" width="${W}" height="${rowH}" fill="transparent"/>
+      <text x="0" y="${y + 4}">${label}</text>
+      <line class="link${worse ? " worse" : ""}" x1="${x(a)}" x2="${x(b)}" y1="${y}" y2="${y}"/>
+      <circle class="cnn" cx="${x(a)}" cy="${y}" r="4.5"/>
+      <circle class="vit" cx="${x(b)}" cy="${y}" r="4.5"/>
+      <text class="val" x="${W}" y="${y + 4}" text-anchor="end">${Math.round(a * 100)} / ${Math.round(b * 100)}</text></g>`;
+  });
+  $("vs-chart").innerHTML = s + "</svg>";
+  $("vs-chart").setAttribute("aria-label", "Recall per class. Lowest for MobileNetV2: " +
+    keys.slice(0, 3).map((k) => `${k.replace("_", " ")} ${Math.round(rc[k] * 100)}% vs ${Math.round(rv[k] * 100)}%`).join(", "));
 }
 
 /* ---------------- recent grades feed ---------------- */
@@ -1251,7 +1337,7 @@ async function renderEval() {
   ] }, options: opts("predicted confidence", "actual accuracy") });
   if (d.weak && $("weak-card")) {
     $("weak-card").hidden = false;
-    $("weak-line").innerHTML = `<b>${prettyClass(d.weak.class)}</b>, recall <b class="num">${(d.weak.recall * 100).toFixed(0)}%</b>. Overall test accuracy <b class="num">${(d.overall_acc * 100).toFixed(1)}%</b> · fresh-vs-rotten <b class="num">AUC ${d.roc.auc.toFixed(4)}</b>.`;
+    $("weak-line").innerHTML = `<b>${prettyClass(d.weak.class)}</b>, recall <b class="num">${(d.weak.recall * 100).toFixed(0)}%</b>. Accuracy on this 70-per-class sample <b class="num">${(d.overall_acc * 100).toFixed(1)}%</b> (95.8% on the full test set) · fresh-vs-rotten <b class="num">AUC ${d.roc.auc.toFixed(4)}</b>.`;
   }
 }
 
@@ -1297,3 +1383,35 @@ async function renderEval() {
   let pi = 0;
   setInterval(() => { if (!document.hidden) window.ctxActivity(periodic[pi++ % periodic.length][0], "sys"); }, 22000);
 })();
+
+/* ---------------- drift monitor ---------------- */
+async function loadDrift(demo = false) {
+  $("drift-live").classList.toggle("is-on", !demo); $("drift-live").setAttribute("aria-pressed", String(!demo));
+  $("drift-demo").classList.toggle("is-on", demo); $("drift-demo").setAttribute("aria-pressed", String(demo));
+  let d; try { d = await (await fetch(`${API}/api/drift${demo ? "?demo=true" : ""}`)).json(); } catch (e) { return; }
+  $("drift-src").textContent = demo
+    ? "A synthetic year: stable for nine months, then dimmer light and a supplier switch to more bell pepper."
+    : "Monthly check of logged scans: confidence and produce mix against the first three months.";
+  const months = d.months || [];
+  if (!months.length) {
+    $("drift-chart").innerHTML = `<p class="drift-empty small">Not enough history yet. The check needs four months of logged scans; switch to the synthetic year to see an alert.</p>`;
+    $("drift-action").textContent = "";
+    return;
+  }
+  const lim = d.threshold.low_conf_ratio, W = Math.max(360, Math.round($("drift-chart").clientWidth || 640)), H = 160, L = 6, B = 22, T = 10;
+  const maxR = Math.max(lim * 1.4, ...months.map((m) => m.low_conf_ratio));
+  const bw = (W - L) / months.length, y = (r) => H - B - (r / maxR) * (H - B - T);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Low-confidence share per month, as a multiple of the baseline">`;
+  months.forEach((m, i) => {
+    const base = d.baseline.months.includes(m.month), alert = m.confidence_drift || m.mix_drift;
+    s += `<rect class="bar${base ? " base" : ""}${alert ? " alert" : ""}" x="${L + i * bw + bw * 0.18}" y="${y(m.low_conf_ratio)}" width="${bw * 0.64}" height="${H - B - y(m.low_conf_ratio)}" rx="3"><title>${m.month}: ${m.low_conf_ratio}x baseline low-confidence share, PSI ${m.psi}</title></rect>`;
+    s += `<text x="${L + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${m.month.slice(2)}</text>`;
+  });
+  s += `<line class="lim" x1="${L}" x2="${W}" y1="${y(lim)}" y2="${y(lim)}"/><text class="lim-l" x="${L}" y="${y(lim) - 6}">alert at ${lim}x the baseline share of unsure scans</text></svg>`;
+  $("drift-chart").innerHTML = s;
+  const n = (d.alerts || []).length;
+  $("drift-action").innerHTML = (n ? `<b>${n} month${n > 1 ? "s" : ""} over the limit.</b> ` : "<b>No alerts.</b> ") + d.action;
+}
+$("drift-live").onclick = () => loadDrift(false);
+$("drift-demo").onclick = () => loadDrift(true);
+$("tab-dashboard").addEventListener("click", () => loadDrift($("drift-demo").classList.contains("is-on")));

@@ -144,7 +144,13 @@
   }
 
   /* ---- haptic feedback on touch devices (confirmation pulses) ---- */
-  const buzz = (ms) => { if (coarse && navigator.vibrate) { try { navigator.vibrate(ms); } catch (_) {} } };
+  // vibrate only after a real tap, or Chrome logs a blocked-call error
+  const buzz = (ms) => {
+    if (!coarse || !navigator.vibrate || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return;
+    try { navigator.vibrate(ms); } catch (_) {}
+  };
+  // a skipped view transition rejects its promises; that is expected, not an error
+  const quiet = (vt) => { if (vt) [vt.ready, vt.finished, vt.updateCallbackDone].forEach((p) => p && p.catch(() => {})); return vt; };
   if (coarse && navigator.vibrate) {
     document.querySelectorAll(".nav-item,.seg,.side-act,.btn").forEach((b) =>
       b.addEventListener("click", () => buzz(8), { passive: true }));
@@ -169,7 +175,7 @@
       const orig = btn.onclick;
       if (typeof orig !== "function") return;
       btn.onclick = (e) => {
-        try { document.startViewTransition(() => orig.call(btn, e)); }
+        try { quiet(document.startViewTransition(() => orig.call(btn, e))); }
         catch (_) { orig.call(btn, e); }
       };
     });
@@ -196,7 +202,8 @@
             scrollTo(0, 0);
           });
         } catch (_) { orig.call(heM, e); return; }
-        vt.finished.finally(() => { if (brand) brand.style.viewTransitionName = ""; });
+        quiet(vt);
+        vt.finished.catch(() => {}).finally(() => { if (brand) brand.style.viewTransitionName = ""; });
       };
     }
   }

@@ -1,0 +1,12 @@
+# Light deps for CI: TensorFlow and Ultralytics are stubbed in tests/conftest.py
+numpy
+pandas
+scikit-learn
+joblib
+pillow
+opencv-python-headless
+fastapi
+python-multipart
+httpx
+pytest
+ruff

@@ -1,0 +1,15 @@
+{
+  "protocol": "notebook 03: 70/15/15 chronological, 28-day window, 7-day horizon, MAE items/day on test",
+  "test_windows": 76,
+  "seasonal_naive_mae": 6.26,
+  "lstm_mae": 3.59,
+  "lstm_params": 18887,
+  "transformer_mae_runs": [
+    4.2,
+    4.21,
+    4.3
+  ],
+  "transformer_mae_mean": 4.24,
+  "transformer_params": 17575,
+  "transformer": "2 encoder blocks, 4 heads, d=32, learned positions, mean-pool, dense 7"
+}

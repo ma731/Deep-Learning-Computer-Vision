@@ -6,10 +6,10 @@ real US terminal-market fruit & vegetable prices; otherwise we serve a
 calibrated reference table. Result is cached so we never hammer upstream, and
 any per-item failure falls back to the reference price for that item.
 """
+import base64
+import json
 import os
 import time
-import json
-import base64
 import urllib.request
 
 # our 10 produce types: key, display name, emoji, reference wholesale EUR/kg

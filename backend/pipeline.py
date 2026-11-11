@@ -15,7 +15,6 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-
 import store
 from gradcam import gradcam_heatmap, overlay_heatmap
 

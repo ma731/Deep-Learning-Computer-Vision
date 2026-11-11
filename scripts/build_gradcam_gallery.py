@@ -2,14 +2,19 @@
 docs/figures/gradcam/<class>.jpg + models/gradcam_gallery.json (Lab gallery).
 Run:  .venv\\Scripts\\python.exe scripts/build_gradcam_gallery.py
 """
-import json, pathlib, random, sys
-import cv2, numpy as np
+import json
+import pathlib
+import random
+import sys
+
+import cv2
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from gradcam import gradcam_heatmap, overlay_heatmap   # noqa: E402
+from gradcam import gradcam_heatmap, overlay_heatmap  # noqa: E402
 
 MODELS, TEST = ROOT / "models", ROOT / "data" / "dataset" / "test"
 OUT = ROOT / "docs" / "figures" / "gradcam"

@@ -17,15 +17,14 @@ import time
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, Model, Sequential
+from tensorflow.keras import Model, Sequential, layers
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-from tensorflow.keras.callbacks import (EarlyStopping, ModelCheckpoint,
-                                        ReduceLROnPlateau, TensorBoard)
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 ROOT = Path(__file__).resolve().parent.parent
