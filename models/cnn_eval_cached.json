@@ -1,0 +1,71 @@
+{
+  "model": "MobileNetV2 (ImageNet) + head, fine-tuned top 30 layers",
+  "framework": "tensorflow 2.19.1",
+  "params": 2591060,
+  "size_mb_file": 25.9,
+  "cpu_latency_ms_batch1": 159.1,
+  "test_full": {
+    "n": 4140,
+    "accuracy": 0.958,
+    "macro_f1": 0.9378,
+    "auc_fresh_vs_rotten": 0.9979,
+    "per_class_recall": {
+      "fresh_apple": 0.9562,
+      "fresh_banana": 0.9933,
+      "fresh_bellpepper": 0.956,
+      "fresh_carrot": 0.9783,
+      "fresh_cucumber": 0.967,
+      "fresh_mango": 0.9815,
+      "fresh_orange": 0.9839,
+      "fresh_potato": 0.9674,
+      "fresh_strawberry": 1.0,
+      "fresh_tomato": 0.9778,
+      "rotten_apple": 0.9635,
+      "rotten_banana": 0.9976,
+      "rotten_bellpepper": 0.7159,
+      "rotten_carrot": 0.8023,
+      "rotten_cucumber": 0.9091,
+      "rotten_mango": 0.9614,
+      "rotten_orange": 0.948,
+      "rotten_potato": 0.7241,
+      "rotten_strawberry": 0.9749,
+      "rotten_tomato": 0.9438
+    },
+    "weakest": {
+      "class": "rotten_bellpepper",
+      "recall": 0.7159
+    }
+  },
+  "test_balanced_70": {
+    "n": 1400,
+    "accuracy": 0.9307,
+    "macro_f1": 0.929,
+    "auc_fresh_vs_rotten": 0.9957,
+    "per_class_recall": {
+      "fresh_apple": 0.9714,
+      "fresh_banana": 1.0,
+      "fresh_bellpepper": 0.9571,
+      "fresh_carrot": 0.9714,
+      "fresh_cucumber": 0.9714,
+      "fresh_mango": 0.9857,
+      "fresh_orange": 0.9714,
+      "fresh_potato": 0.9857,
+      "fresh_strawberry": 1.0,
+      "fresh_tomato": 0.9714,
+      "rotten_apple": 0.9571,
+      "rotten_banana": 1.0,
+      "rotten_bellpepper": 0.7286,
+      "rotten_carrot": 0.8,
+      "rotten_cucumber": 0.9143,
+      "rotten_mango": 0.9143,
+      "rotten_orange": 0.9,
+      "rotten_potato": 0.6857,
+      "rotten_strawberry": 0.9714,
+      "rotten_tomato": 0.9571
+    },
+    "weakest": {
+      "class": "rotten_potato",
+      "recall": 0.6857
+    }
+  }
+}

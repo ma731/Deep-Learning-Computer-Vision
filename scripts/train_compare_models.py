@@ -11,9 +11,12 @@ Outputs:
 
 Run:  .venv\\Scripts\\python.exe scripts/train_compare_models.py
 """
-import json, time, pathlib
+import json
+import pathlib
+import time
+
 import tensorflow as tf
-from tensorflow.keras import layers, Sequential
+from tensorflow.keras import Sequential, layers
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

@@ -2,8 +2,8 @@
 session history/trends instead of only the simulated forecast. Best-effort:
 any DB error is swallowed so it can never break the live demo."""
 import sqlite3
-import time
 import threading
+import time
 from pathlib import Path
 
 DB = Path(__file__).resolve().parent.parent / "models" / "scans.db"

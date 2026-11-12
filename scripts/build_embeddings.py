@@ -2,11 +2,15 @@
 set down to 2D with t-SNE → models/embeddings.json (for the Lab embedding map).
 Run:  .venv\\Scripts\\python.exe scripts/build_embeddings.py
 """
-import json, pathlib, random
-import cv2, numpy as np
+import json
+import pathlib
+import random
+
+import cv2
+import numpy as np
 import tensorflow as tf
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from sklearn.manifold import TSNE
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODELS, TEST = ROOT / "models", ROOT / "data" / "dataset" / "test"

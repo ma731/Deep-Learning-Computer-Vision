@@ -654,15 +654,16 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <p class="kicker reveal">Near-perfect on the in-store call, and candid about the one class it finds hard.</p>
     <div class="split2 viz-r top" style="margin-top:1.2rem">
       <div class="stack">
-        <h2 class="title reveal">0.994 on fresh versus rotten.</h2>
-        <p class="body reveal r2">A single accuracy number hides sins, so we evaluated on the dimension a store actually cares about. On the binary <b>fresh-vs-rotten</b> decision, the model scores a <b>ROC-AUC of 0.9938</b>. That value, this close to 1.0, means the rotten signal and the fresh signal almost never overlap. It is the decision behind every price action in the store.</p>
+        <h2 class="title reveal">0.996 on fresh versus rotten.</h2>
+        <p class="body reveal r2">A single accuracy number hides sins, so we evaluated on the dimension a store actually cares about. On the binary <b>fresh-vs-rotten</b> decision, the model scores a <b>ROC-AUC of 0.996</b>. That value, this close to 1.0, means the rotten signal and the fresh signal almost never overlap. It is the decision behind every price action in the store.</p>
         <p class="body reveal r2">The 20×20 confusion matrix tells the reassuring half: it is diagonal-dominant, and the errors that remain are <b>intra-produce-type</b> (sell-soon apple vs fresh apple), not across the fresh/rotten boundary. The model rarely makes the expensive mistake of calling rotten produce fresh.</p>
-        <div class="box bad reveal r3"><b>Named out loud.</b> The weakest class is rotten bell pepper at <b>recall 0.60</b>: peppers wrinkle rather than discolour, so "rotten" is visually subtler. We feature it, not hide it. Fresh mango and fresh strawberry reach recall 1.0.</div>
+        <div class="box bad reveal r3"><b>Named out loud.</b> The weakest class is rotten bell pepper at <b>recall 0.73</b>: peppers wrinkle rather than discolour, so "rotten" is visually subtler. We feature it, not hide it. Fresh mango and fresh strawberry reach recall 1.0.</div>
         <div class="telem reveal r3">
-          <span class="tchip">AUC <b>0.9938</b></span>
-          <span class="tchip">weakest <b>0.60</b> bellpepper</span>
+          <span class="tchip">AUC <b>0.996</b></span>
+          <span class="tchip">weakest <b>0.73</b> bellpepper</span>
           <span class="tchip">errors stay <b class="c">intra-type</b></span>
         </div>
+        <div class="box good reveal r3"><b>Then a transformer.</b> A Vision Transformer (DeiT-tiny) fine-tuned on the same photos reaches <b>98.4%</b> against MobileNetV2's 95.8%, and lifts rotten bell pepper from <b>0.72 to 0.97</b> recall. Self-attention lets a wrinkle and a soft spot far apart on the pepper inform each other from the first layer. The price: 3.6x the compute and 1.6x the CPU time per photo, so the CNN stays the default on phones.</div>
         <div class="reveal r3" style="margin-top:.4rem"><span class="coursechip">Evaluation toolkit</span> <span class="note">Measured with the confusion_matrix, classification_report and ROC-AUC tooling.</span></div>
       </div>
       <div class="stack">
@@ -672,7 +673,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         </div>
         <div class="viz-frame reveal r3"><span class="badge">draws on scroll</span>
           <canvas id="cv-roc" class="viz" height="220"></canvas>
-          <p class="cap">ROC traces to AUC 0.994 against the random-chance diagonal.</p>
+          <p class="cap">ROC traces to AUC 0.996 against the random-chance diagonal.</p>
         </div>
       </div>
     </div>
@@ -1324,7 +1325,7 @@ function drawAblation(cv,p){ var s=setupCanvas(cv,280),ctx=s.ctx,W=s.w,H=s.h; ct
 
 /* --- confusion --- */
 var CLASSES=['f.apple','f.banana','f.bellpep','f.carrot','f.cucumb','f.mango','f.orange','f.potato','f.strawb','f.tomato','r.apple','r.banana','r.bellpep','r.carrot','r.cucumb','r.mango','r.orange','r.potato','r.strawb','r.tomato'];
-var REC=[.943,.971,.929,.957,.986,1,.986,.929,1,.971,.929,1,.60,.80,.90,.986,.929,.743,.943,.957]; // diag recall
+var REC=[.986,.971,.943,.971,.986,1,.986,.957,1,.986,.929,1,.729,.814,.886,.986,.957,.743,.957,.957]; // diag recall
 var CM=(function(){ var n=20,a=new Float32Array(n*n); for(var r=0;r<n;r++){ var diag=REC[r]; a[r*n+r]=diag; var rem=1-diag, k=(r<10? (r+10):(r-10)); a[r*n+k]+=rem*0.55; var k2=(r+1)%n; a[r*n+k2]+=rem*0.45; } return a; })();
 var cmHover=null,cmP=0;
 function drawConfusion(cv,p){ cmP=p; var s=setupCanvas(cv,300),ctx=s.ctx,W=s.w,H=s.h; ctx.clearRect(0,0,W,H);

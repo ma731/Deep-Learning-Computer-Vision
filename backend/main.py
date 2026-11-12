@@ -9,13 +9,13 @@ import io
 import json
 import os
 import shutil
+from pathlib import Path
 
 import numpy as np
 from fastapi import Body, FastAPI, File, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 from PIL import Image
 
 
@@ -36,6 +36,8 @@ def _load_dotenv():
 
 _load_dotenv()   # must run BEFORE importing market (it reads USDA_REPORT at import)
 
+import drift
+import metrics
 import store
 from forecast import get_forecast, get_produce_forecast
 from market import get_market_prices
@@ -132,6 +134,20 @@ def evaluation():
     return json.loads(p.read_text()) if p.exists() else {}
 
 
+@app.get("/api/transformer")
+def transformer_comparison():
+    """CNN vs ViT on the same test images (scripts/compare_transformer.py)."""
+    out = metrics.load_json("transformer_compare.json", {})
+    fc = metrics.load_json("forecast_compare.json")
+    return {**out, "forecast": fc} if out and fc else out
+
+
+@app.get("/api/drift")
+def drift_status(demo: bool = Query(False)):
+    """Monthly confidence / produce-mix drift vs the first 3 months of scans."""
+    return drift.drift_report(drift.synthetic_rows() if demo else drift.load_rows(store.DB))
+
+
 @app.post("/api/reset_session")
 def reset_session():
     pipeline.reset_session()
@@ -153,7 +169,7 @@ def review_queue():
 
 @app.post("/api/review_queue/clear")
 def review_queue_clear():
-    from pipeline import REVIEW_LOG, REVIEW_DIR
+    from pipeline import REVIEW_DIR, REVIEW_LOG
     if REVIEW_LOG.exists():
         REVIEW_LOG.unlink()
     if REVIEW_DIR.exists():
@@ -186,7 +202,7 @@ def forecast(live: bool = Query(False)):
 def review_relabel(payload: dict = Body(...)):
     """Active learning: record a human's corrected label and drop the item from
     the queue — these corrections feed the next training run."""
-    from pipeline import REVIEW_LOG, REVIEW_DIR
+    from pipeline import REVIEW_DIR, REVIEW_LOG
     image = payload.get("image")
     label = payload.get("label")
     if not image or not label:

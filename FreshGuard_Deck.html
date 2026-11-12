@@ -511,11 +511,11 @@ tr.floor td{color:var(--ink-3);font-style:italic}
         <div class="stack">
           <div class="grid3" style="grid-template-columns:1fr 1fr;gap:1rem">
             <div class="readout rise"><div class="v num">95.8<span style="font-size:.5em">%</span></div><div class="l">Test accuracy · 20 classes</div></div>
-            <div class="readout rise"><div class="v cy num">0.994</div><div class="l">Binary AUC · fresh vs rotten</div></div>
+            <div class="readout rise"><div class="v cy num">0.996</div><div class="l">Binary AUC · fresh vs rotten</div></div>
           </div>
           <div class="box good rise"><b>Grad-CAM</b> on every grade: the heatmap lands on the actual bruise, not the background. An audit trail Law 1/2025 asks for, at zero extra inference cost.</div>
           <div class="box info rise"><b>Abstains when unsure</b> (confidence &lt; 0.70) and routes the crop to a human review queue; those exact crops then retrain the model. <b>It improves on its own weak spots.</b></div>
-          <p class="note rise">Train/val curves track cleanly through both phases, with no overfitting. Honest weak spot: rotten bell pepper (recall 0.60) wrinkles rather than browns.</p>
+          <p class="note rise">Train/val curves track cleanly through both phases, with no overfitting. Honest weak spot: rotten bell pepper (recall 0.73) wrinkles rather than browns.</p>
         </div>
         <div class="rise">
           <div class="printout"><img src="docs/figures/gradcam_gallery.png" alt="Grad-CAM heatmaps attending to decay regions across produce classes"></div>
@@ -523,7 +523,39 @@ tr.floor td{color:var(--ink-3);font-style:italic}
         </div>
       </div>
     </div>
-    <div class="notes">SPEAKER — BASSEM (04:35). I owned evaluation and explainability. On 4,140 held-out images across twenty classes, the fine-tuned model hits 95.8 percent. But the decision that matters in a store is the binary one — fresh versus rotten — and there the AUC is 0.994, near-perfect separation. Two things make this deployable, not just accurate. First, Grad-CAM: every grade comes with a heatmap, and it lights up on the actual brown patch, not the background — that's the audit trail Law 1/2025 wants, for free. Second, the model knows when it doesn't know: below 70 percent confidence it abstains and sends the crop to a human review queue, and those crops are exactly what we retrain on, so it gets better on its own blind spots. Training and validation curves track cleanly, no overfitting. And we're honest about the weak spot — rotten bell pepper, recall 0.60, because peppers wrinkle instead of browning. Jorge, the forecaster.</div>
+    <div class="notes">SPEAKER — BASSEM (04:35). I owned evaluation and explainability. On 4,140 held-out images across twenty classes, the fine-tuned model hits 95.8 percent. But the decision that matters in a store is the binary one — fresh versus rotten — and there the AUC is 0.996, near-perfect separation. Two things make this deployable, not just accurate. First, Grad-CAM: every grade comes with a heatmap, and it lights up on the actual brown patch, not the background — that's the audit trail Law 1/2025 wants, for free. Second, the model knows when it doesn't know: below 70 percent confidence it abstains and sends the crop to a human review queue, and those crops are exactly what we retrain on, so it gets better on its own blind spots. Training and validation curves track cleanly, no overfitting. And we're honest about the weak spot — rotten bell pepper, recall 0.73, because peppers wrinkle instead of browning. Jorge, the forecaster.</div>
+  </section>
+
+  <!-- ViT upgrade (Nov 2026) -->
+  <section class="slide" data-speaker="Marco Ortiz Togashi" data-role="Upgrade" data-act="3">
+    <div class="wrap">
+      <div class="head rise"><span class="kicker">Same 4,140 test photos · same resize · same validation split</span><h2>Convolution or attention?</h2></div>
+      <div class="split top">
+        <div class="stack">
+          <div class="grid3" style="grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="readout rise"><div class="v num">98.4<span style="font-size:.5em">%</span></div><div class="l">DeiT-tiny transformer (MobileNetV2: 95.8%)</div></div>
+            <div class="readout rise"><div class="v cy num">0.97</div><div class="l">Rotten bell pepper recall (MobileNetV2: 0.72)</div></div>
+          </div>
+          <div class="box good rise"><b>Why it helps.</b> A CNN reads small windows and links distant regions late. A ViT splits the photo into 16x16 patches and lets every patch attend to every other one from layer one. Rot on a pepper is a wrinkle here and a soft patch there.</div>
+          <div class="box info rise"><b>What it costs.</b> 2.1x the parameters, 3.6x the compute, 1.6x the CPU time per photo. Frozen features alone reach only 93.7%: it needs a real fine-tune.</div>
+        </div>
+        <div class="panel rise">
+          <table>
+            <thead><tr><th>Test set</th><th style="text-align:right">MobileNetV2</th><th style="text-align:right">DeiT-tiny</th></tr></thead>
+            <tbody>
+              <tr><td>Accuracy</td><td class="n">95.8%</td><td class="n">98.4%</td></tr>
+              <tr><td>Macro F1</td><td class="n">0.938</td><td class="n">0.973</td></tr>
+              <tr><td>Fresh vs rotten AUC</td><td class="n">0.998</td><td class="n">0.999</td></tr>
+              <tr><td>Parameters</td><td class="n">2.6M</td><td class="n">5.5M</td></tr>
+              <tr><td>Compute per photo</td><td class="n">0.30 GFLOPs</td><td class="n">1.07 GFLOPs</td></tr>
+              <tr><td>CPU time per photo</td><td class="n">19.7 ms</td><td class="n">32.2 ms</td></tr>
+            </tbody>
+          </table>
+          <p class="figcap">Paired test: the ViT fixes 144 photos the CNN misses, the reverse 36 (McNemar p = 1.7e-16). CPU times in one runtime (PyTorch, 4 threads, batch 1). Fine-tuned in 2.8 min on a laptop RTX 4060.</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes">SPEAKER, MARCO. After the course I tested the obvious question: would a Vision Transformer beat our CNN? Same test photos, same preprocessing, same validation split. DeiT-tiny goes from 95.8 to 98.4 percent, and our weakest class, rotten bell pepper, from 0.72 to 0.97 recall. The reason is attention: every patch sees every other patch from the first layer, so a wrinkle and a soft spot far apart get combined early. It costs about three and a half times the compute and 1.6 times the CPU time, so on a phone with no GPU the CNN is still the sensible default, and the frozen-backbone run shows you cannot skip the fine-tune. I also tried a transformer for the forecast and it lost to the LSTM, 4.24 against 3.59 MAE, so the LSTM stays.</div>
   </section>
 
   <!-- ═══════════════ ACT IV DIVIDER ═══════════════ JORGE -->
@@ -567,6 +599,7 @@ tr.floor td{color:var(--ink-3);font-style:italic}
             <tbody>
               <tr><td>One-lag naive baseline</td><td class="n">6.26</td><td class="n">8.25</td></tr>
               <tr class="win"><td>Multivariate LSTM (ours)</td><td class="n">3.59</td><td class="n">4.64</td></tr>
+              <tr><td>Small temporal transformer (Nov 2026)</td><td class="n">4.24</td><td class="n">n/a</td></tr>
               <tr class="floor"><td>Noise floor (irreducible)</td><td class="n">~3.19</td><td class="n">—</td></tr>
             </tbody>
           </table>
@@ -692,12 +725,12 @@ tr.floor td{color:var(--ink-3);font-style:italic}
       <div class="split wide-r top">
         <div class="stack">
           <p class="lead rise">Strong diagonal across all 20 classes. Where it slips, it confuses items <span class="hi">within a produce type</span> (sell-soon apple vs fresh apple), not across the fresh/rotten boundary that actually drives the markdown decision.</p>
-          <div class="box good rise"><b>AUC 0.994</b> on fresh-vs-rotten means the safety-critical "pass-rotten-as-fresh" rate is negligible.</div>
+          <div class="box good rise"><b>AUC 0.996</b> on fresh-vs-rotten means the safety-critical "pass-rotten-as-fresh" rate is negligible.</div>
         </div>
         <div class="rise"><div class="printout"><img src="docs/figures/confusion_matrix.png" alt="20x20 confusion matrix with strong diagonal" style="max-height:62vh;width:auto;margin:0 auto"></div></div>
       </div>
     </div>
-    <div class="notes">Backup. Errors are intra-type, not across the fresh/rotten line. That's the boundary that matters in a store, and AUC 0.994 says we're near-perfect on it.</div>
+    <div class="notes">Backup. Errors are intra-type, not across the fresh/rotten line. That's the boundary that matters in a store, and AUC 0.996 says we're near-perfect on it.</div>
   </section>
 
   <!-- A2 · NOISE FLOOR -->

@@ -84,7 +84,7 @@
         <article class="step" data-step="3">
           <p class="panel-kicker">Three architectures · one verdict</p>
           <h2 class="panel-title">We earned <em>95.8%</em>.</h2>
-          <p class="panel-lead">Same data, three models: a plain neural net (31.9%), a CNN from scratch (75.0%), then transfer learning. The pipeline grades each item <em>Fresh / Sell soon / Reject</em> at <em>0.994 AUC</em>, with a confidence gate that abstains when unsure.</p>
+          <p class="panel-lead">Same data, three models: a plain neural net (31.9%), a CNN from scratch (75.0%), then transfer learning. The pipeline grades each item <em>Fresh / Sell soon / Reject</em> at <em>0.996 AUC</em>, with a confidence gate that abstains when unsure.</p>
         </article>
 
         <article class="step" data-step="4">
@@ -406,6 +406,21 @@
           </div>
         </div>
 
+        <div class="card drift" id="drift-card">
+          <div class="drift-head">
+            <div>
+              <h3 class="drift-title">Is the model still seeing what it was trained on?</h3>
+              <p class="muted small" id="drift-src">Monthly check of scan confidence and produce mix against the first three months.</p>
+            </div>
+            <div class="seg" role="group" aria-label="Drift data source">
+              <button class="seg-btn is-on" id="drift-live" aria-pressed="true">Store scans</button>
+              <button class="seg-btn" id="drift-demo" aria-pressed="false">Synthetic year</button>
+            </div>
+          </div>
+          <div class="drift-chart" id="drift-chart"></div>
+          <p class="drift-action" id="drift-action" aria-live="polite"></p>
+        </div>
+
         <p class="muted small foot-note">Items flagged “sell soon” or “reject” by store scans, forecast a week ahead by an LSTM, the flywheel: every scan sharpens the forecast.</p>
       </section>
 
@@ -449,6 +464,48 @@
           <p class="muted">Three architectures, same data, the ablation that earned transfer learning.</p>
         </div>
         <div class="model-bars" id="model-bars"></div>
+
+        <section class="vs" id="vs" aria-labelledby="vs-title" hidden>
+          <header class="vs-head">
+            <h3 id="vs-title">Convolution or attention?</h3>
+            <p class="muted" id="vs-sub">MobileNetV2 against a Vision Transformer, scored on the same test photos.</p>
+          </header>
+
+          <div class="vs-body">
+            <div class="vs-score card">
+              <table class="vs-table" id="vs-table">
+                <caption class="sr-only">Test metrics for MobileNetV2 and the Vision Transformer</caption>
+              </table>
+              <p class="vs-test small muted" id="vs-test"></p>
+            </div>
+
+            <figure class="vs-classes card">
+              <figcaption class="vs-fig-head">
+                <span class="vs-fig-title">Recall per class</span>
+                <span class="vs-legend small">
+                  <span class="lg lg-cnn" aria-hidden="true"></span>MobileNetV2
+                  <span class="lg lg-vit" aria-hidden="true"></span>Transformer
+                </span>
+              </figcaption>
+              <div class="vs-chart" id="vs-chart" role="img" aria-label="Per-class recall, both models"></div>
+            </figure>
+          </div>
+
+          <div class="vs-why">
+            <div>
+              <h4>Why it helps</h4>
+              <p>A CNN reads the photo through small sliding windows and only links distant regions after many layers. A Vision Transformer cuts it into 16 by 16 pixel patches and lets every patch attend to every other one from the first layer. Rot on a bell pepper is a wrinkle here and a soft patch there; seeing both at once is what attention is good at.</p>
+            </div>
+            <div>
+              <h4>What it costs</h4>
+              <p id="vs-cost">Attention is quadratic in the number of patches and carries no built-in idea of locality, so it needs pretraining on lots of images and more compute per photo.</p>
+            </div>
+            <div>
+              <h4>When the CNN still wins</h4>
+              <p id="vs-when">Tiny data, a phone with no GPU, or a hard latency budget per crate. And for the weekly forecast, a small time-series transformer did worse than the LSTM, so the LSTM stays.</p>
+            </div>
+          </div>
+        </section>
 
         <div class="net-head-row">
           <span class="card-label">How each architecture sees the image</span>
