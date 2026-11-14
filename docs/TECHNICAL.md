@@ -859,6 +859,29 @@ during a demo (a phone hotspot is a good backup). Audience phones reach the
 public URL over their own internet, not the venue Wi-Fi. See `DEPLOY.md` for the
 ngrok-static-domain (reusable QR) vs cloudflare (no warning page) trade-off.
 
+### 11b. The browser demo (no laptop needed)
+
+`demo/` is a static page that grades one photo entirely in the visitor's browser, so it
+works without the laptop or a tunnel. GitHub Pages serves it (`.github/workflows/pages.yml`).
+
+- The MobileNetV2 classifier is exported to ONNX (opset 17, 10.2 MB) and run with
+  onnxruntime-web 1.20.1 from a pinned CDN URL. No YOLO stage: the whole photo is graded,
+  like the backend's fallback path, and the live-demo lock is off.
+- Same preprocessing as the backend: plain bilinear squash to 224x224, MobileNetV2 scaling,
+  and the original plus a mirrored copy averaged (test-time flip).
+- Same rules: tiers, the 70% "not sure" gate, unit prices and recovery rate are read from
+  `backend/pipeline.py` into `demo/demo.json` at build time; `tests/test_web_demo.py` fails
+  if they drift apart.
+- Samples: the first photo of each class from the held-out test set for five produce types
+  (all ten graded correctly by the model), plus one borderline photo to show a markdown.
+  Grad-CAM for the samples is precomputed.
+- Parity, measured: ONNX vs Keras on identical inputs, max probability gap 2.0e-6. Browser end
+  to end vs Keras on the 11 samples (open `demo/index.html?parity=1`): top class 11/11, tier
+  11/11, max probability gap 4.7e-4, rot-area gap 5e-5.
+
+Rebuild with Python 3.12, TensorFlow, Keras 3.13 (the model's saving version), tf2onnx and
+onnxruntime: `python scripts/build_web_demo.py`.
+
 ---
 
 ## 12. Train everything from scratch
