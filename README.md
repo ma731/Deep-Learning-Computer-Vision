@@ -4,6 +4,9 @@
 Reject, shows where it saw the damage, and turns that into a markdown price, a reorder
 suggestion and the euros saved by not throwing it away.**
 
+**[Try it in your browser](https://ma731.github.io/Deep-Learning-Computer-Vision/)**: pick a
+sample photo or upload your own. The model runs on your device, nothing is uploaded.
+
 Deep Learning final project, IE University, Team FreshGuard. ·
 [Glossary](#glossary) · [Technical reference](docs/TECHNICAL.md) ·
 [Slide deck](FreshGuard_Deck.html)
