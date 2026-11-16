@@ -1,6 +1,8 @@
-// The checkout scanner: the photo rides a belt under a scanning arch, gets its sticker and hops into a crate.
+// The checkout scanner: a 3D fruit, drawn from what the model saw in the photo, rides a belt under a
+// scanning light, gets its sticker and hops into a crate.
 // A picture of the decision. The verdict itself comes from the model in index.html.
 import * as THREE from 'three';
+import { makeFruit, withBeam } from './fruits.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -121,39 +123,16 @@ export function createScanner(canvas) {
     return { g, rim, tier, color: c, hit: -9, bump() { count += 1; paint(); } };
   });
 
-  // ---- the card: the photo on a carrier, tilted up so you can see it
+  // ---- the carrier: a tray with the fruit on it and a front plate for the sticker
   const card = new THREE.Group(); scene.add(card); card.visible = false;
-  const tilt = new THREE.Group(); tilt.rotation.x = 0.62; tilt.position.y = 0.72; card.add(tilt);
-  add(new RoundedBoxGeometry(CARD + 0.24, 0.16, CARD + 0.24, 4, 0.07), plastic('#232e2a'), 0, 0, 0, tilt);
-  add(new RoundedBoxGeometry(1.2, 0.6, 0.5, 3, 0.1), plastic('#1b2421'), 0, 0.3, -0.35, card);
-  const blank = new THREE.DataTexture(new Uint8Array([20, 26, 24, 255]), 1, 1); blank.needsUpdate = true;
-  const face = new THREE.ShaderMaterial({
-    uniforms: { tPhoto: { value: blank }, tCam: { value: blank }, uHasCam: { value: 0 }, uScan: { value: 2 }, uHeat: { value: 0 }, uBeam: { value: 0 },
-      uDissolve: { value: 0 }, uEdge: { value: new THREE.Color('#a8ff35') }, uScale: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `varying vec2 vUv; uniform sampler2D tPhoto, tCam; uniform float uHasCam, uScan, uHeat, uBeam, uDissolve; uniform vec3 uEdge; uniform vec2 uScale, uOff;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
-      void main(){
-        vec2 uv = vUv * uScale + uOff;
-        vec3 col = texture2D(tPhoto, uv).rgb;
-        float grey = dot(col, vec3(0.3, 0.6, 0.1));
-        vec3 read = uHasCam > 0.5 ? texture2D(tCam, uv).rgb : mix(vec3(grey) * vec3(0.35, 1.0, 0.6), col, 0.4);
-        float passed = step(uScan, vUv.x);                       // the part the beam has already read
-        col = mix(col, read, passed * uHeat);
-        col += vec3(0.66, 1.0, 0.21) * exp(-pow((vUv.x - uScan) * 55.0, 2.0)) * 3.0 * uBeam;
-        float n = noise(vUv * 7.0) * 0.7 + noise(vUv * 23.0) * 0.3, cut = uDissolve * 1.25 - 0.12;
-        if (n < cut) discard;
-        col += uEdge * smoothstep(cut + 0.09, cut, n) * 3.5 * step(0.001, uDissolve);
-        gl_FragColor = vec4(col, 1.0); }`,
-  });
-  const photo = new THREE.Mesh(new THREE.PlaneGeometry(CARD, CARD), face); photo.rotation.x = -Math.PI / 2; photo.position.y = 0.085; tilt.add(photo);
-  // the sticker
+  add(new RoundedBoxGeometry(2.0, 0.18, 2.0, 4, 0.08), plastic('#232e2a'), 0, 0.09, 0, card);
+  add(new RoundedBoxGeometry(2.0, 0.62, 0.12, 3, 0.05), plastic('#232e2a'), 0, 0.31, 1.0, card);
+  const holder = new THREE.Group(); holder.position.y = 0.18; card.add(holder);
+  const beam = { uArchX: { value: ARCH_X }, uBeam: { value: 0 } };
   const stickerTex = canvasTex(256, 256, () => {});
-  const sticker = new THREE.Group(); sticker.position.set(0.62, 0.1, 0.6); tilt.add(sticker);
-  const stickerBody = add(new THREE.CylinderGeometry(0.4, 0.4, 0.07, 40), plastic('#ffffff'), 0, 0.035, 0, sticker);
-  const stickerTop = new THREE.Mesh(new THREE.CircleGeometry(0.36, 40), new THREE.MeshBasicMaterial({ map: stickerTex, transparent: true })); stickerTop.rotation.x = -Math.PI / 2; stickerTop.position.y = 0.072; sticker.add(stickerTop);
+  const sticker = new THREE.Group(); sticker.position.set(0.55, 0.33, 1.065); sticker.rotation.x = Math.PI / 2; card.add(sticker);
+  const stickerBody = add(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 40), plastic('#ffffff'), 0, 0.03, 0, sticker);
+  const stickerTop = new THREE.Mesh(new THREE.CircleGeometry(0.24, 40), new THREE.MeshBasicMaterial({ map: stickerTex, transparent: true })); stickerTop.rotation.x = -Math.PI / 2; stickerTop.position.y = 0.062; sticker.add(stickerTop);
   const drawSticker = (tier) => stickerTex.paint((g, w) => {
     g.strokeStyle = '#06100b'; g.fillStyle = '#06100b'; g.lineWidth = 26; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
     const k = TIERS[tier].glyph;
@@ -161,6 +140,7 @@ export function createScanner(canvas) {
     else if (k === 'cross') { g.moveTo(80, 80); g.lineTo(176, 176); g.moveTo(176, 80); g.lineTo(80, 176); g.stroke(); }
     else { g.font = '700 150px "Space Grotesk", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(k === 'percent' ? '%' : '?', w / 2, w / 2 + 8); }
   });
+  const clearFruit = () => { holder.traverse((m) => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose(); } }); holder.clear(); };
 
   // ---- sparks
   const N = 180, pPos = new Float32Array(N * 3).fill(-99), pCol = new Float32Array(N * 3), pVel = new Float32Array(N * 3), pLife = new Float32Array(N);
@@ -186,7 +166,7 @@ export function createScanner(canvas) {
 
   // ---- the clock, small tweens and the camera
   const tweens = new Set();
-  let speed = 1, moving = 0, w = 1, h = 1, seen = true, raf = 0, last = 0, waiting = null, busy = false, stuck = -9;
+  let speed = 1, spin = 0.5, moving = 0, w = 1, h = 1, seen = true, raf = 0, last = 0, waiting = null, busy = false, stuck = -9;
   const tween = (dur, fn, ease = smooth) => new Promise((res) => tweens.add({ t: 0, dur, fn, ease, res }));
   const goal = { pos: new THREE.Vector3(1.5, 5.4, 14), look: new THREE.Vector3(1.5, 1, 0) }, look = goal.look.clone();
   const aim = (px, py, pz, lx, ly, lz) => { goal.pos.set(px, py, pz); goal.look.set(lx, ly, lz); };
@@ -201,7 +181,8 @@ export function createScanner(canvas) {
     sheet.material.uniforms.uTime.value = now;
     archLight.intensity = 3 + sheet.material.uniforms.uPower.value * 14;
     sticker.scale.setScalar(stuck > 0 ? Math.max(0.001, spring((now - stuck) * speed, 3.4, 0.42)) : 0.001);
-    tilt.rotation.z = 0.05 * knock((now - stuck) * speed);
+    holder.rotation.y += dt * spin * speed;
+    holder.position.y = 0.18 + 0.1 * Math.abs(knock((now - stuck) * speed));          // the fruit jumps when the sticker lands
     crates.forEach((c) => { const u = now - c.hit; c.g.scale.y = 1 - 0.1 * knock(u); c.rim.material.color.copy(c.color).multiplyScalar(1.2 + 3.2 * Math.exp(-Math.max(0, u) * 2.2)); });
     crateLight.intensity *= Math.exp(-dt * 2.4);
     for (let i = 0; i < N; i++) if (pLife[i] > 0) {
@@ -228,47 +209,42 @@ export function createScanner(canvas) {
   document.addEventListener('visibilitychange', run);
   size(); run();
 
-  const texFrom = (img) => { const t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t; };
-  const loadImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
-
-  // one photo, start to finish. `verdict` is a promise of the model's answer; `onStamp` fires when the sticker lands.
-  async function one({ img, cam, verdict, onStamp }) {
-    const u = face.uniforms, a = img.naturalWidth / img.naturalHeight;
-    u.tPhoto.value = texFrom(img);
-    u.uScale.value.set(a > 1 ? 1 / a : 1, a > 1 ? 1 : a); u.uOff.value.set((1 - u.uScale.value.x) / 2, (1 - u.uScale.value.y) / 2);
-    const camImg = cam ? await loadImg(cam) : null;
-    u.tCam.value = camImg ? texFrom(camImg) : blank; u.uHasCam.value = camImg ? 1 : 0;
-    u.uHeat.value = 0; u.uBeam.value = 0; u.uScan.value = 2; u.uDissolve.value = 1; u.uEdge.value.set('#a8ff35');
-    stuck = -9; card.visible = true; card.scale.setScalar(1); card.rotation.set(0, 0, 0);
-    card.position.set(-6.4, BELT_Y, 0);
-    const scanAt = (x) => { u.uScan.value = (ARCH_X - x) / CARD + 0.5; };
-
-    // 1. it appears out of nothing and rides in
-    aim(-3.6, 4.3, 8.2, -3.2, 1.5, 0); moving = 1;
-    tween(0.7, (e) => { u.uDissolve.value = 1 - e; });
-    await tween(1.25, (e) => { card.position.x = -6.4 + (ARCH_X - 1.15 + 6.4) * e; }, outCubic);
-    // 2. under the arch: the light reads it, slowly, while the model thinks
-    aim(ARCH_X + 1.3, 3.9, 5.4, ARCH_X + 0.15, 1.7, 0); moving = 0.32; sfx.beep();
-    tween(0.3, (e) => { sheet.material.uniforms.uPower.value = 0.25 + 0.75 * e; u.uBeam.value = e; u.uHeat.value = e; });
-    const x0 = card.position.x;
-    await Promise.all([tween(1.5, (e) => { card.position.x = x0 + 2.3 * e; scanAt(card.position.x); }, (x) => x), verdict]);
+  // one item, start to finish. `verdict` is a promise of the model's answer; `label` is what the photo is known to be
+  // (the samples) and otherwise the model's best guess; `onStamp` fires when the sticker lands.
+  async function one({ label, verdict, onStamp }) {
     const v = await verdict, tier = TIERS[v.tier] ? v.tier : 'review', crate = crates[ORDER.indexOf(tier)];
+    const [state, kind] = (label || v.label).split('_');
+    clearFruit();
+    // how far gone it looks: fresh, rotten, or on the turn when the model puts it in between or is unsure
+    const rot = tier === 'reject' ? 1 : tier === 'fresh' ? 0 : tier === 'sell_soon' ? clamp(0.25 + v.rot * 0.5, 0.4, 0.65) : clamp(v.rot, state === 'rotten' ? 0.6 : 0, 1);
+    const fruit = makeFruit(kind, rot); withBeam(fruit, beam);
+    fruit.traverse((m) => { if (m.isMesh) m.castShadow = true; }); holder.add(fruit); holder.rotation.y = -0.6;
+    beam.uBeam.value = 0; stuck = -9; spin = 0.5; card.visible = true; card.rotation.set(0, 0, 0); card.position.set(-6.4, BELT_Y, 0);
+
+    // 1. it pops into being and rides in
+    aim(-3.6, 4.0, 8.0, -3.2, 1.6, 0); moving = 1;
+    tween(0.8, (e, raw) => card.scale.setScalar(Math.max(0.001, spring(raw * 0.8, 2.4, 0.5))), (x) => x);
+    await tween(1.25, (e) => { card.position.x = -6.4 + (ARCH_X - 1.2 + 6.4) * e; }, outCubic);
+    // 2. through the sheet of light, slowly, turning, with a line of light running over it
+    aim(ARCH_X + 1.2, 3.3, 5.2, ARCH_X + 0.1, 1.75, 0); moving = 0.32; spin = 2.4; sfx.beep();
+    tween(0.3, (e) => { sheet.material.uniforms.uPower.value = 0.25 + 0.75 * e; beam.uBeam.value = e; });
+    const x0 = card.position.x;
+    await tween(1.6, (e) => { card.position.x = x0 + 2.4 * e; }, (x) => x);
     // 3. the sticker
-    moving = 0; drawSticker(tier); stickerBody.material.color.set(TIERS[tier].color); u.uEdge.value.set(TIERS[tier].color);
+    moving = 0; spin = 0.5; drawSticker(tier); stickerBody.material.color.set(TIERS[tier].color);
     stuck = performance.now() / 1000; sfx.stamp(); onStamp?.(v);
     sticker.getWorldPosition(world); burst(world, TIERS[tier].color, 34, 2.4);
-    tween(0.5, (e) => { sheet.material.uniforms.uPower.value = 1 - 0.75 * e; u.uBeam.value = 1 - e; u.uHeat.value = 1 - 0.55 * e; });
-    await tween(0.75, () => {});
+    tween(0.5, (e) => { sheet.material.uniforms.uPower.value = 1 - 0.75 * e; beam.uBeam.value = 1 - e; });
+    await tween(0.8, () => {});
     // 4. off the belt and into its crate
     moving = 1; aim(crate.g.position.x - 1.6, 4.8, 9.4, crate.g.position.x - 1.2, 1.1, 0);
     const x1 = card.position.x;
     await tween(0.55, (e) => { card.position.x = x1 + (BELT_END - x1) * e; }, (x) => x * x);
-    moving = 0;
-    const from = card.position.clone(), to = new THREE.Vector3(crate.g.position.x, 0.25, 0);
+    moving = 0; spin = 3;
+    const from = card.position.clone(), to = new THREE.Vector3(crate.g.position.x, 0.3, 0);
     await tween(0.85, (e, raw) => {
       card.position.lerpVectors(from, to, e); card.position.y += 4 * 1.7 * raw * (1 - raw);
-      card.rotation.z = -0.9 * e; card.scale.setScalar(1 - 0.28 * e);
-      if (tier === 'reject') u.uDissolve.value = clamp((raw - 0.45) / 0.55);
+      card.rotation.z = -0.7 * e; card.scale.setScalar(1 - (tier === 'reject' ? 0.75 : 0.3) * e);
     }, (x) => x);
     crate.hit = performance.now() / 1000; crate.bump(); sfx.land(tier);
     crateLight.color.copy(crate.color); crateLight.position.set(to.x, 2.2, 1.2); crateLight.intensity = 26;

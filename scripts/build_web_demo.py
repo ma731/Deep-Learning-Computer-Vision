@@ -3,7 +3,8 @@
 Needs Python 3.12 with TensorFlow, Keras 3.13 (the model was saved with it), tf2onnx and
 onnxruntime, plus the local held-out test split in data/dataset/test.
 
-    python scripts/build_web_demo.py
+    python scripts/build_web_demo.py            # new sample photos, keeps the ONNX file that is there
+    python scripts/build_web_demo.py --convert  # also converts the model again (needs tf2onnx)
 
 The page itself (demo/index.html) needs no server: GitHub Pages serves it as static files.
 Thresholds and prices are read from backend/pipeline.py so the two can't drift apart.
@@ -13,6 +14,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -23,8 +25,11 @@ DEMO = ROOT / "demo"
 TEST = ROOT / "data" / "dataset" / "test"
 MODEL = ROOT / "models" / "freshguard_mobilenetv2.keras"
 ONNX = DEMO / "model" / "freshguard_mobilenetv2.onnx"
-PRODUCE = ["apple", "banana", "orange", "strawberry", "tomato"]
+PRODUCE = ["apple", "banana", "bellpepper", "carrot", "cucumber", "mango", "orange", "potato", "strawberry", "tomato"]
 DISPLAY_MAX = 480
+# stock photos with a visible watermark: fine for training, not for a public page
+WATERMARKED = {"rottenPotato (107).jpg", "rottenCarrot (118).jpg", "rottenCarrot (124).jpg", "rottenCarrot (134).jpg",
+               "rottenCarrot (136).jpg"}
 IMG = 224
 
 
@@ -155,7 +160,11 @@ def main() -> int:
 
     model = keras.models.load_model(MODEL, compile=False)
     classes = json.loads((ROOT / "models" / "class_names.json").read_text(encoding="utf-8"))
-    in_name, out_name = convert(model)
+    if ONNX.exists() and "--convert" not in sys.argv:      # same model: keep the file and its tensor names
+        old = json.loads((DEMO / "demo.json").read_text(encoding="utf-8"))["model"]
+        in_name, out_name = old["input"], old["output"]
+    else:
+        in_name, out_name = convert(model)
     sess = ort.InferenceSession(str(ONNX), providers=["CPUExecutionProvider"])
 
     (DEMO / "samples").mkdir(parents=True, exist_ok=True)
@@ -184,7 +193,8 @@ def main() -> int:
         print(f"{name:22s} truth={truth:18s} keras={classes[top]:18s} p={keras_p[top]:.3f} skipped={skipped}")
 
     def photos(cls):
-        return sorted(p for p in (TEST / cls).iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".png"})
+        return sorted(p for p in (TEST / cls).iterdir()
+                      if p.suffix.lower() in {".jpg", ".jpeg", ".png"} and p.name not in WATERMARKED)
 
     for produce in PRODUCE:
         for state in ("fresh", "rotten"):
@@ -196,25 +206,28 @@ def main() -> int:
                     break
             add(cls, cls, path, skipped, img, batch, keras_p)
 
-    # One borderline photo, so the page can show a markdown: the first test photo (same
-    # fixed order) the model puts in the "sell soon" band, shown with its true label.
-    seen = 0
+    # Photos on the turn, so the page can show markdowns: for each kind of produce, the first test photo
+    # (same fixed order) the model puts in the "sell soon" band, shown with its true label. Up to five.
+    found = 0
     for produce in PRODUCE:
+        if found == 5:
+            break
+        name = "borderline" if found == 0 else f"borderline_{produce}"
+        seen, hit = 0, False
         for state in ("rotten", "fresh"):
             cls = f"{state}_{produce}"
             for path in photos(cls)[:60]:
-                img, batch, keras_p = score(path, "borderline")
+                img, batch, keras_p = score(path, name)
                 rot = sum(p for c, p in zip(classes, keras_p) if c.startswith("rotten"))
                 if sell_soon[0] <= rot < sell_soon[1]:
-                    add("borderline", cls, path, seen, img, batch, keras_p)
+                    add(name, cls, path, seen, img, batch, keras_p)
+                    found, hit = found + 1, True
                     break
                 seen += 1
-            else:
-                continue
-            break
-        else:
-            continue
-        break
+            if hit:
+                break
+        if not hit:
+            (DEMO / "samples" / f"{name}.jpg").unlink(missing_ok=True)
 
     raw = ONNX.read_bytes()
     manifest = {
