@@ -1486,5 +1486,17 @@ window.addEventListener('load',function(){ if(HAS_GSAP) ScrollTrigger.refresh();
 
 })();
 </script>
+<script>
+// On the public site there is no backend, so the finale opens the browser demo instead of the local console.
+if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && location.protocol !== 'file:') {
+  const a = document.querySelector('a.launch[href="http://localhost:8000"]');
+  if (a) {
+    a.href = './'; a.removeAttribute('target');
+    [...a.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).forEach((n) => { n.textContent = 'Try the live demo'; });
+    const note = a.parentElement.querySelector('.note');
+    if (note) note.textContent = 'Opens the browser demo: the same model, running on your device.';
+  }
+}
+</script>
 </body>
 </html>

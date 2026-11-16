@@ -6,6 +6,10 @@ suggestion and the euros saved by not throwing it away.**
 
 **[Try it in your browser](https://ma731.github.io/Deep-Learning-Computer-Vision/)**: pick a
 sample photo or upload your own. The model runs on your device, nothing is uploaded.
+On that page a 3D checkout scanner shows the decision: the photo rides a belt under a scanning
+light, gets its sticker and drops into the crate for full price, mark down today, off the shelf
+or ask a person. The verdict is still the model's. The class presentation is there too, as
+**[the whole story](https://ma731.github.io/Deep-Learning-Computer-Vision/story.html)**.
 
 Deep Learning final project, IE University, Team FreshGuard. ·
 [Glossary](#glossary) · [Technical reference](docs/TECHNICAL.md) ·
