@@ -37,7 +37,7 @@ h1{font:600 clamp(2rem,5vw,3.1rem)/1.05 var(--serif);letter-spacing:-.02em;margi
 @media (max-width:820px){.result{grid-template-columns:1fr}}
 .samples button{position:relative;flex:0 0 86px;scroll-snap-align:start;aspect-ratio:1;border:1px solid var(--line);border-radius:10px;overflow:hidden;padding:0;background:var(--well);cursor:pointer;transition:transform .15s,border-color .15s}
 .samples button:hover{transform:translateY(-2px);border-color:var(--line-hi)}
-.samples button[aria-pressed="true"]{border-color:var(--lime);box-shadow:0 0 0 2px rgba(168,255,53,.25)}
+.samples button[aria-pressed="true"],.samples button.on{border-color:var(--lime);box-shadow:0 0 0 2px rgba(168,255,53,.25)}
 .samples img{width:100%;height:100%;object-fit:cover;display:block}
 .samples span{position:absolute;left:4px;right:4px;bottom:4px;font:500 10px/1.2 var(--mono);color:var(--ink);background:rgba(7,10,9,.82);padding:2px 5px;border-radius:6px;text-align:center}
 .upload{margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -63,6 +63,11 @@ h1{font:600 clamp(2rem,5vw,3.1rem)/1.05 var(--serif);letter-spacing:-.02em;margi
 .bruise p{color:var(--ink-2);font-size:13.5px;max-width:70ch;margin-bottom:10px}
 .bz-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:10px;font:500 13px var(--mono);color:var(--ink-2)}
 .bruise .hint{margin:8px 0 0}
+.bz-live{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;align-items:center;margin-top:12px;background:var(--well);border:1px solid var(--line);border-radius:14px;padding:12px}
+.bz-live img{width:150px;height:150px;object-fit:cover;border-radius:10px;display:block}
+.bz-live .verdict{margin:0 0 4px}
+.bz-live .days{margin:6px 0 0}
+@media (max-width:480px){.bz-live{grid-template-columns:96px minmax(0,1fr);gap:12px}.bz-live img{width:96px;height:96px}}
 .bz-row b{color:var(--ink);font-size:16px}
 .bz-row input{flex:1 1 220px;accent-color:var(--st-sell)}
 .truth{font:500 12.5px var(--mono);color:var(--st-sell);margin-bottom:10px}
@@ -147,6 +152,17 @@ table.parity td,table.parity th{border-bottom:1px solid var(--line);padding:4px 
           <p>Pick a fresh photo and add brown spots with the slider. The spots are painted on by this page; the
           verdict is the model's, run again on the edited photo each time.</p>
           <div class="samples" id="bzPick"></div>
+          <div class="bz-live" id="bzLive" aria-live="polite">
+            <img id="bzImg" alt="">
+            <div>
+              <div class="verdict"><span class="chip" id="bzChip"></span><span class="what" id="bzWhat"></span></div>
+              <div class="meter" aria-hidden="true">
+                <div class="zones" id="bzZones"><span class="z fresh"></span><span class="z sell"></span><span class="z off"></span><span class="pin" id="bzPin"></span></div>
+                <div class="ticks" id="bzTicks"><span>Fresh</span><span>Still edible</span><span>Off</span></div>
+              </div>
+              <p class="days" id="bzDays"></p>
+            </div>
+          </div>
           <label class="bz-row"><span>Brown spots: <b id="bzN">0</b></span>
             <input type="range" id="bz" min="0" max="30" step="1" value="0" disabled aria-describedby="bzHint"></label>
           <p class="hint" id="bzHint">Works on apples, oranges and peppers. On the other kinds the model hardly reacts to painted spots:
@@ -256,7 +272,9 @@ function pixels(img) {
   return out;
 }
 
-async function classify(img) {
+let queue = Promise.resolve();
+const classify = (img) => (queue = queue.catch(() => {}).then(() => classifyNow(img)));
+async function classifyNow(img) {
   const n = cfg.model.size, px = pixels(img);
   const data = new Float32Array(2 * n * n * 3);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -329,6 +347,13 @@ function money(g, sev) {
 
 // rough days left, the backend's rule of thumb (shelf_life_days): about a week when fresh, less as it rots
 const shelfDays = (rot, sev) => Math.max(0, (1 - rot) * 7 - sev * 4);
+function daysText(g, sev) {
+  const d = shelfDays(g.rot, sev), days = d < 1 ? "less than a day" : `about ${Math.round(d)} day${Math.round(d) === 1 ? "" : "s"}`;
+  return g.tier === "fresh" ? `Rough shelf life: <b>${days}</b>.`
+    : g.tier === "sell_soon" ? `Rough shelf life: <b>${days}</b>. Fine to eat, but nobody pays full price for it, so it goes out marked down today.`
+    : g.tier === "reject" ? "Rough shelf life: <b>none</b>."
+    : "No estimate until a person has looked at it.";
+}
 
 // --- UI ------------------------------------------------------------------------
 function show(g, sev, src, cam, note) {
@@ -351,11 +376,7 @@ function show(g, sev, src, cam, note) {
   $("bars").innerHTML = g.top.map(([c, p]) =>
     `<div class="bar"><span>${pretty(c)}</span><span class="track"><span class="fill" style="width:${(100 * p).toFixed(1)}%"></span></span><span class="num">${pct(p)}</span></div>`).join("");
   $("pin").style.left = (100 * g.rot).toFixed(1) + "%";
-  const d = shelfDays(g.rot, sev), days = d < 1 ? "less than a day" : `about ${Math.round(d)} day${Math.round(d) === 1 ? "" : "s"}`;
-  $("days").innerHTML = g.tier === "fresh" ? `Rough shelf life: <b>${days}</b>.`
-    : g.tier === "sell_soon" ? `Rough shelf life: <b>${days}</b>. Fine to eat, but nobody pays full price for it, so it goes out marked down today.`
-    : g.tier === "reject" ? "Rough shelf life: <b>none</b>."
-    : "No estimate until a person has looked at it.";
+  $("days").innerHTML = daysText(g, sev);
   const t2 = $("truth");
   t2.hidden = !note;
   if (note) t2.textContent = note;
@@ -425,15 +446,22 @@ function bruiser(img) {
   };
 }
 function bruiseTool() {
-  const picks = ["apple", "orange", "bellpepper"].map((k) => cfg.samples.find((s) => s.id === "fresh_" + k)).filter(Boolean);
+  const picks = ["orange", "apple", "bellpepper"].map((k) => cfg.samples.find((s) => s.id === "fresh_" + k)).filter(Boolean);
   if (!picks.length) return;
   const slider = $("bz"), pickBox = $("bzPick");
-  let paint = null, item = "", timer = 0;
-  const go = async () => {
-    const n = +slider.value, url = paint(n);
+  let paint = null, item = "", timer = 0, ticket = 0;
+  const go = async (follow) => {
+    const n = +slider.value, url = paint(n), mine = ++ticket;
     $("bzN").textContent = n;
+    const img = await loadImg(url), g = grade(await classify(img)), sev = severity(img);
+    if (mine !== ticket) return;                         // a newer slider position is on its way
     const note = n ? `Edited: ${n} brown spot${n === 1 ? "" : "s"} painted on a fresh ${item} by this page.` : `The fresh ${item}, as photographed.`;
-    await run(await loadImg(url), url, null, null, true, note, true);
+    $("bzImg").src = url; $("bzImg").alt = note;
+    $("bzChip").className = "chip " + g.tier; $("bzChip").textContent = NAMES[g.tier];
+    $("bzWhat").textContent = `Chance it is rotten: ${(100 * g.rot).toFixed(0)}%`;
+    $("bzPin").style.left = (100 * g.rot).toFixed(1) + "%";
+    $("bzDays").innerHTML = daysText(g, sev);
+    if (follow) show(g, sev, url, null, note);           // the full card below follows along, once someone uses it
   };
   for (const s of picks) {
     const b = document.createElement("button");
@@ -441,15 +469,18 @@ function bruiseTool() {
     b.type = "button"; b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", `Bruise the fresh ${item}`);
     b.innerHTML = `<img src="${s.photo}" alt="" loading="lazy"><span>${item}</span>`;
     const name = item;
-    b.onclick = async () => {
+    b.onclick = async (ev) => {
       item = name; slider.value = 0; $("bzN").textContent = 0; paint = bruiser(await loadImg(s.photo));
-      [...pickBox.children].forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      slider.disabled = false; go();
+      [...pickBox.children].forEach((x) => x.classList.toggle("on", x === b));
+      slider.disabled = false; go(ev.isTrusted);
     };
     pickBox.appendChild(b);
   }
-  slider.oninput = () => { $("bzN").textContent = slider.value; clearTimeout(timer); timer = setTimeout(go, 180); };
+  slider.oninput = () => { $("bzN").textContent = slider.value; clearTimeout(timer); timer = setTimeout(() => go(true), 120); };
+  const cols = $("zones").style.gridTemplateColumns;
+  $("bzZones").style.gridTemplateColumns = cols; $("bzTicks").style.gridTemplateColumns = cols;
   $("bruiseBox").hidden = false;
+  pickBox.children[0].click();
 }
 
 const loadImg = (src) => new Promise((ok, bad) => {
