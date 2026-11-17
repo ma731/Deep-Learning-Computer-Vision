@@ -58,6 +58,13 @@ h1{font:600 clamp(2rem,5vw,3.1rem)/1.05 var(--serif);letter-spacing:-.02em;margi
 .meter .ticks span:nth-child(2){text-align:center} .meter .ticks span:last-child{text-align:right}
 .days{font-size:14px;color:var(--ink-2);margin-bottom:12px}
 .days b{color:var(--ink)}
+.bruise{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
+.bruise h3{font:600 15px var(--sans);color:var(--ink);margin-bottom:4px}
+.bruise p{color:var(--ink-2);font-size:13.5px;max-width:70ch;margin-bottom:10px}
+.bz-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:10px;font:500 13px var(--mono);color:var(--ink-2)}
+.bruise .hint{margin:8px 0 0}
+.bz-row b{color:var(--ink);font-size:16px}
+.bz-row input{flex:1 1 220px;accent-color:var(--st-sell)}
 .truth{font:500 12.5px var(--mono);color:var(--st-sell);margin-bottom:10px}
 @media (prefers-reduced-motion:reduce){.meter .pin{transition:none}}
 .stage{position:relative;border-radius:12px;overflow:hidden;background:var(--well);aspect-ratio:4/3;display:grid;place-items:center}
@@ -135,6 +142,16 @@ table.parity td,table.parity th{border-bottom:1px solid var(--line);padding:4px 
         <h3>Hard calls: still fine to eat, but for how long?</h3>
         <p id="hardWhy"></p>
         <div class="samples" id="hard"></div>
+        <div class="bruise" id="bruiseBox" hidden>
+          <h3>Bruise one yourself</h3>
+          <p>Pick a fresh photo and add brown spots with the slider. The spots are painted on by this page; the
+          verdict is the model's, run again on the edited photo each time.</p>
+          <div class="samples" id="bzPick"></div>
+          <label class="bz-row"><span>Brown spots: <b id="bzN">0</b></span>
+            <input type="range" id="bz" min="0" max="30" step="1" value="0" disabled aria-describedby="bzHint"></label>
+          <p class="hint" id="bzHint">Works on apples, oranges and peppers. On the other kinds the model hardly reacts to painted spots:
+          it learned other signs of rot for those (mould, wrinkles, soft dark patches).</p>
+        </div>
       </div>
     </section>
 
@@ -169,8 +186,9 @@ table.parity td,table.parity th{border-bottom:1px solid var(--line);padding:4px 
   <div class="facts">
     <p>The model is a fine-tuned MobileNetV2 that scored 95.8% on photos it never saw in training
     (20 classes: 10 kinds of produce, fresh or rotten). Sample photos come from that held-out test set:
-    the first photo of each class that has no stock-photo watermark, plus the hard calls: for each kind,
-    the first photo the model knows the kind of but puts between fresh and rotten. The shelf life is the
+    the first photo of each class that has no stock-photo watermark, plus the hard calls: picked by eye from
+    the test photos the model puts between fresh and rotten, for still looking edible. "Bruise one yourself"
+    paints spots on a fresh photo in the browser; the page says so whenever it shows one. The shelf life is the
     full app's rule of thumb (about a week when fresh, less as it rots), not a learned number.</p>
     <p>The tiers, the "not sure" rule and the prices are the same as in the full app. The full app also
     finds each item in a live camera feed and forecasts spoilage; this page grades one photo.</p>
@@ -313,7 +331,7 @@ function money(g, sev) {
 const shelfDays = (rot, sev) => Math.max(0, (1 - rot) * 7 - sev * 4);
 
 // --- UI ------------------------------------------------------------------------
-function show(g, sev, src, cam, truth) {
+function show(g, sev, src, cam, note) {
   $("photo").src = src; $("photo").hidden = false; $("empty").hidden = true;
   $("photo").alt = `Photo graded as ${NAMES[g.tier]}`;
   const t = $("camToggle");
@@ -339,15 +357,15 @@ function show(g, sev, src, cam, truth) {
     : g.tier === "reject" ? "Rough shelf life: <b>none</b>."
     : "No estimate until a person has looked at it.";
   const t2 = $("truth");
-  t2.hidden = !truth;
-  if (truth) t2.textContent = `The person who labelled this photo called it ${truth.split("_")[0]}. The model sits on the fence too.`;
+  t2.hidden = !note;
+  if (note) t2.textContent = note;
   const m = money(g, sev);
   $("price").textContent = eur(m.price); $("action").textContent = m.action; $("saved").textContent = eur(m.saved);
   $("out").hidden = false;
 }
 
 const tally = {n: 0, eur: 0};
-async function run(img, src, cam, button, byHand, hard) {
+async function run(img, src, cam, button, byHand, note, quick) {
   if (byHand && window.fgScanner) $("stage3d").scrollIntoView({block: "nearest", behavior: "smooth"});
   document.querySelectorAll(".samples button").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
   $("status").textContent = "Grading...";
@@ -358,16 +376,80 @@ async function run(img, src, cam, button, byHand, hard) {
     return {...g, sev: severity(img), ms: Math.round(performance.now() - t0)};
   })();
   const reveal = (g) => {
-    show(g, g.sev, src, cam, hard ? button.dataset.truth : null);
+    show(g, g.sev, src, cam, note);
     tally.n += 1; tally.eur += money(g, g.sev).saved;
     $("tallyN").textContent = tally.n; $("tallyEur").textContent = eur(tally.eur);
     $("status").textContent = `Graded in ${g.ms} ms on this device.`;
     $("reading").textContent = "";
   };
-  if (window.fgScanner) {
+  if (window.fgScanner && !quick) {
     $("reading").textContent = "Scanning...";
     window.fgScanner.play({label: button?.dataset.truth, verdict, onStamp: reveal});
   } else reveal(await verdict);
+}
+
+// --- bruise one yourself: brown spots painted on a fresh photo, the same spots in the same order every time
+function seeded(a) {
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function bruiser(img) {
+  const W = img.naturalWidth, H = img.naturalHeight, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d", {willReadFrequently: true});
+  ctx.drawImage(img, 0, 0);
+  const base = ctx.getImageData(0, 0, W, H), a = base.data, mask = new Uint8Array(W * H);
+  let n = 0, sy = 0, sx = 0;
+  for (let i = 0; i < W * H; i++) {                      // the fruit: coloured pixels, not the white or grey background
+    const mx = Math.max(a[i * 4], a[i * 4 + 1], a[i * 4 + 2]), mn = Math.min(a[i * 4], a[i * 4 + 1], a[i * 4 + 2]);
+    if ((mx - mn) / Math.max(mx, 1) > 0.25 && mx > 40) { mask[i] = 1; n++; sy += i / W | 0; sx += i % W; }
+  }
+  const cy = sy / n, cx = sx / n, size = Math.sqrt(n), R = seeded(7), spots = [];
+  for (let tries = 0; spots.length < 30 && tries < 20000; tries++) {
+    const i = Math.floor(R() * W * H), y = i / W | 0, x = i % W;
+    if (!mask[i] || (y - cy) ** 2 + (x - cx) ** 2 > (0.42 * size) ** 2) continue;   // inside, away from the edge
+    spots.push({x, y, r: size * (0.02 + 0.02 * R()), sq: 0.7 + 0.6 * R(), tone: 0.7 + 0.4 * R()});
+  }
+  return (count) => {
+    const img2 = new ImageData(new Uint8ClampedArray(a), W, H), d = img2.data;
+    for (const s of spots.slice(0, count)) {
+      const reach = s.r * 2.4;
+      for (let y = Math.max(0, Math.floor(s.y - reach)); y < Math.min(H, s.y + reach); y++)
+        for (let x = Math.max(0, Math.floor(s.x - reach)); x < Math.min(W, s.x + reach); x++) {
+          const i = y * W + x, dd = Math.hypot(y - s.y, (x - s.x) * s.sq) / s.r;
+          const w = Math.min(1, Math.max(0, 1.15 - dd)) * 0.6 * mask[i];
+          if (w > 0) { d[i * 4] = d[i * 4] * (1 - w) + 125 * s.tone * w; d[i * 4 + 1] = d[i * 4 + 1] * (1 - w) + 85 * s.tone * w; d[i * 4 + 2] = d[i * 4 + 2] * (1 - w) + 45 * s.tone * w; }
+        }
+    }
+    ctx.putImageData(img2, 0, 0);
+    return c.toDataURL("image/png");                     // lossless, so the model sees exactly these pixels
+  };
+}
+function bruiseTool() {
+  const picks = ["apple", "orange", "bellpepper"].map((k) => cfg.samples.find((s) => s.id === "fresh_" + k)).filter(Boolean);
+  if (!picks.length) return;
+  const slider = $("bz"), pickBox = $("bzPick");
+  let paint = null, item = "", timer = 0;
+  const go = async () => {
+    const n = +slider.value, url = paint(n);
+    $("bzN").textContent = n;
+    const note = n ? `Edited: ${n} brown spot${n === 1 ? "" : "s"} painted on a fresh ${item} by this page.` : `The fresh ${item}, as photographed.`;
+    await run(await loadImg(url), url, null, null, true, note, true);
+  };
+  for (const s of picks) {
+    const b = document.createElement("button");
+    item = pretty(s.truth).split(" ").slice(1).join(" ");
+    b.type = "button"; b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", `Bruise the fresh ${item}`);
+    b.innerHTML = `<img src="${s.photo}" alt="" loading="lazy"><span>${item}</span>`;
+    const name = item;
+    b.onclick = async () => {
+      item = name; slider.value = 0; $("bzN").textContent = 0; paint = bruiser(await loadImg(s.photo));
+      [...pickBox.children].forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      slider.disabled = false; go();
+    };
+    pickBox.appendChild(b);
+  }
+  slider.oninput = () => { $("bzN").textContent = slider.value; clearTimeout(timer); timer = setTimeout(go, 180); };
+  $("bruiseBox").hidden = false;
 }
 
 const loadImg = (src) => new Promise((ok, bad) => {
@@ -409,16 +491,18 @@ async function parity() {
     const name = hard ? item + "?" : pretty(s.truth);
     b.setAttribute("aria-label", `Sample photo: ${hard ? "a hard call, " + item : name}`);
     b.innerHTML = `<img src="${s.photo}" alt="" loading="lazy"><span>${name}</span>`;
-    b.onclick = async (ev) => run(await loadImg(s.photo), s.photo, s.cam, b, ev.isTrusted, hard);
+    const note = hard ? `In the dataset this photo is labelled ${s.truth.split("_")[0]}. The model puts it in between: fine to eat, but not for long.` : null;
+    b.onclick = async (ev) => run(await loadImg(s.photo), s.photo, s.cam, b, ev.isTrusted, note);
     (hard ? hardBox : box).appendChild(b);
   }
   const hardOnes = cfg.samples.filter((s) => s.id.startsWith("hard"));
   if (hardOnes.length) {
     const fresh = hardOnes.filter((s) => s.truth.startsWith("fresh")).length;
-    $("hardWhy").textContent = `The training photos only say fresh or rotten; nobody labelled "nearly off". These ${hardOnes.length} are ones the model puts in between, so it calls them sell soon. Whoever labelled them called ${fresh} fresh and ${hardOnes.length - fresh} rotten.`;
+    $("hardWhy").textContent = `The training photos only say fresh or rotten; nobody labelled "nearly off". Of all the test photos the model puts in between, these ${hardOnes.length} still look fine to eat, so it calls them sell soon. Whoever labelled them called ${fresh} fresh and ${hardOnes.length - fresh} rotten.`;
     $("hardBox").hidden = false;
   }
   const all = [...box.children, ...hardBox.children];
+  bruiseTool();
   $("status").textContent = "Ready. Pick a photo.";
   $("file").onchange = async (ev) => {
     const f = ev.target.files[0];

@@ -73,7 +73,7 @@ def test_the_shelf_life_rule_is_the_backends():
 def test_hard_calls_sit_in_the_sell_soon_band_and_name_the_right_kind():
     lo, hi = CFG["backend"]["SELL_SOON_BAND"]
     hard = [s for s in CFG["samples"] if s["id"].startswith("hard")]
-    assert len(hard) >= 4
+    assert len(hard) >= 2
     for s in hard:
         probs = dict(zip(CFG["classes"], s["keras_probs"]))
         rot = sum(p for c, p in probs.items() if c.startswith("rotten"))

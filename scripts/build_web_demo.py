@@ -32,6 +32,13 @@ WATERMARKED = {"rottenPotato (107).jpg", "rottenCarrot (118).jpg", "rottenCarrot
                "rottenCarrot (136).jpg", "rottenCucumber (332).jpg", "freshPotato (30).jpg",
                "rottenBanana (272).jpg"}
 IMG = 224
+# Hard calls: test photos the model puts in the "sell soon" band, picked by eye from all of them (about two
+# dozen) for still looking edible: eat it today, not throw it away. Only
+# two of them pass; the banana, orange and mango candidates looked too far gone to sell. Each is checked again below.
+HARD_PICKS = {
+    "bellpepper": "rotten_bellpepper/rottenPepper (169).jpg",                          # going soft, freckled
+    "potato": "fresh_potato/freshPotato (461).jpg",                                    # a few marks
+}
 
 
 # --- constants shared with the backend ----------------------------------------- #
@@ -172,11 +179,11 @@ def main() -> int:
     samples, worst = [], 0.0
     sell_soon = backend_constants()["SELL_SOON_BAND"]
 
-    def score(path: Path, name: str):
+    def score(path: Path, name: str, ext: str = "jpg"):
         img = Image.open(path).convert("RGB")
         img.thumbnail((DISPLAY_MAX, DISPLAY_MAX))
-        out = DEMO / "samples" / f"{name}.jpg"
-        img.save(out, quality=88)
+        out = DEMO / "samples" / f"{name}.{ext}"
+        img.save(out, quality=88) if ext == "jpg" else img.save(out)
         img = Image.open(out).convert("RGB")          # score exactly what the page loads
         batch = to_input(img)
         return img, batch, model.predict(batch, verbose=0).mean(0)
@@ -187,7 +194,8 @@ def main() -> int:
         worst = max(worst, float(np.abs(onnx_p - keras_p).max()))
         top = int(np.argmax(keras_p))
         overlay(img, gradcam(model, batch, top)).save(DEMO / "samples" / f"{name}_cam.jpg", quality=85)
-        samples.append({"id": name, "photo": f"samples/{name}.jpg", "cam": f"samples/{name}_cam.jpg",
+        photo = f"samples/{name}.png" if (DEMO / "samples" / f"{name}.png").exists() else f"samples/{name}.jpg"
+        samples.append({"id": name, "photo": photo, "cam": f"samples/{name}_cam.jpg",
                         "truth": truth, "source": path.name, "skipped": skipped,
                         "keras_probs": [round(float(p), 6) for p in keras_p],
                         "severity": round(severity(img), 4)})
@@ -207,30 +215,20 @@ def main() -> int:
                     break
             add(cls, cls, path, skipped, img, batch, keras_p)
 
-    # Hard calls: still edible, but for how long? For each kind of produce, the first test photo (same fixed
-    # order) that the model knows the kind of but puts in the "sell soon" band. Shown with its true label,
-    # which is often "fresh": the dataset has no "nearly off" label, so these are where the call is hardest.
+    # Hard calls: still edible, but for how long? Shown with their true label; the dataset has no "nearly off" one.
     for old in [*(DEMO / "samples").glob("borderline*"), *(DEMO / "samples").glob("hard_*")]:
         old.unlink()
-    for produce in PRODUCE:
-        name, hit = f"hard_{produce}", False
-        for state in ("fresh", "rotten"):
-            cls = f"{state}_{produce}"
-            for seen, path in enumerate(photos(cls)):
-                # thumbnails look poor on the page; the alternaria mango set is shot on a box with a shipper label
-                if min(Image.open(path).size) < 200 or path.name.startswith("alternaria"):
-                    continue
-                img, batch, keras_p = score(path, name)
-                rot = sum(p for c, p in zip(classes, keras_p) if c.startswith("rotten"))
-                kind = classes[int(np.argmax(keras_p))].split("_")[1]
-                if kind == produce and sell_soon[0] <= rot < sell_soon[1]:
-                    add(name, cls, path, seen, img, batch, keras_p)
-                    hit = True
-                    break
-            if hit:
-                break
-        if not hit:
-            (DEMO / "samples" / f"{name}.jpg").unlink(missing_ok=True)
+    for produce, rel in HARD_PICKS.items():
+        path, name = TEST / rel, f"hard_{produce}"
+        # PNG, not JPEG: these sit near a threshold, and JPEG artefacts alone can push one over it
+        img, batch, keras_p = score(path, name, "png")
+        rot = sum(p for c, p in zip(classes, keras_p) if c.startswith("rotten"))
+        kind = classes[int(np.argmax(keras_p))].split("_")[1]
+        if kind == produce and sell_soon[0] <= rot < sell_soon[1]:
+            add(name, rel.split("/")[0], path, 0, img, batch, keras_p)
+        else:
+            print(f"skipping {name}: no longer in the sell-soon band")
+            (DEMO / "samples" / f"{name}.png").unlink(missing_ok=True)
 
     raw = ONNX.read_bytes()
     manifest = {
