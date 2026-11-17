@@ -29,7 +29,8 @@ PRODUCE = ["apple", "banana", "bellpepper", "carrot", "cucumber", "mango", "oran
 DISPLAY_MAX = 480
 # stock photos with a visible watermark: fine for training, not for a public page
 WATERMARKED = {"rottenPotato (107).jpg", "rottenCarrot (118).jpg", "rottenCarrot (124).jpg", "rottenCarrot (134).jpg",
-               "rottenCarrot (136).jpg"}
+               "rottenCarrot (136).jpg", "rottenCucumber (332).jpg", "freshPotato (30).jpg",
+               "rottenBanana (272).jpg"}
 IMG = 224
 
 
@@ -206,24 +207,26 @@ def main() -> int:
                     break
             add(cls, cls, path, skipped, img, batch, keras_p)
 
-    # Photos on the turn, so the page can show markdowns: for each kind of produce, the first test photo
-    # (same fixed order) the model puts in the "sell soon" band, shown with its true label. Up to five.
-    found = 0
+    # Hard calls: still edible, but for how long? For each kind of produce, the first test photo (same fixed
+    # order) that the model knows the kind of but puts in the "sell soon" band. Shown with its true label,
+    # which is often "fresh": the dataset has no "nearly off" label, so these are where the call is hardest.
+    for old in [*(DEMO / "samples").glob("borderline*"), *(DEMO / "samples").glob("hard_*")]:
+        old.unlink()
     for produce in PRODUCE:
-        if found == 5:
-            break
-        name = "borderline" if found == 0 else f"borderline_{produce}"
-        seen, hit = 0, False
-        for state in ("rotten", "fresh"):
+        name, hit = f"hard_{produce}", False
+        for state in ("fresh", "rotten"):
             cls = f"{state}_{produce}"
-            for path in photos(cls)[:60]:
+            for seen, path in enumerate(photos(cls)):
+                # thumbnails look poor on the page; the alternaria mango set is shot on a box with a shipper label
+                if min(Image.open(path).size) < 200 or path.name.startswith("alternaria"):
+                    continue
                 img, batch, keras_p = score(path, name)
                 rot = sum(p for c, p in zip(classes, keras_p) if c.startswith("rotten"))
-                if sell_soon[0] <= rot < sell_soon[1]:
+                kind = classes[int(np.argmax(keras_p))].split("_")[1]
+                if kind == produce and sell_soon[0] <= rot < sell_soon[1]:
                     add(name, cls, path, seen, img, batch, keras_p)
-                    found, hit = found + 1, True
+                    hit = True
                     break
-                seen += 1
             if hit:
                 break
         if not hit:

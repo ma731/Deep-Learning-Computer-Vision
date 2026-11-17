@@ -873,7 +873,7 @@ works without the laptop or a tunnel. GitHub Pages serves it (`.github/workflows
   `backend/pipeline.py` into `demo/demo.json` at build time; `tests/test_web_demo.py` fails
   if they drift apart.
 - Samples: the first photo of each class from the held-out test set for five produce types
-  (all ten graded correctly by the model), plus one borderline photo to show a markdown.
+  (all ten graded correctly by the model), plus "hard calls": photos the model puts between fresh and rotten (still edible, sell today).
   Grad-CAM for the samples is precomputed.
 - Parity, measured: ONNX vs Keras on identical inputs, max probability gap 2.0e-6. Browser end
   to end vs Keras on the 11 samples (open `demo/index.html?parity=1`): top class 11/11, tier
