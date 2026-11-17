@@ -1,11 +1,12 @@
 name: Pages
 
-# Publishes the browser demo in demo/ as a static site. No server: the model runs in the
-# visitor's browser (onnxruntime-web). Needs Pages set to "GitHub Actions" in the repo settings.
+# Publishes the browser demo in demo/ as a static site, plus the scroll story (story.html) with
+# the images it uses. No server: the model runs in the visitor's browser (onnxruntime-web).
+# Needs Pages set to "GitHub Actions" in the repo settings.
 on:
   push:
     branches: [main]
-    paths: ["demo/**", ".github/workflows/pages.yml"]
+    paths: ["demo/**", "FreshGuard_Experience.html", "frontend/assets/**", "docs/figures/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -26,8 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/frontend _site/docs
+          cp -r demo/. _site/
+          cp FreshGuard_Experience.html _site/story.html
+          cp -r frontend/assets _site/frontend/assets
+          cp -r docs/figures _site/docs/figures
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: demo
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -62,3 +62,21 @@ def test_the_page_pins_its_runtime_and_reads_the_rules_from_config():
 
 def test_no_em_dashes_in_page_copy():
     assert "—" not in PAGE
+
+
+def test_the_shelf_life_rule_is_the_backends():
+    src = (ROOT / "backend" / "pipeline.py").read_text(encoding="utf-8")
+    assert "(1.0 - float(rotten_prob)) * 7.0 - float(severity) * 4.0" in src
+    assert "(1 - rot) * 7 - sev * 4" in PAGE
+
+
+def test_hard_calls_sit_in_the_sell_soon_band_and_name_the_right_kind():
+    lo, hi = CFG["backend"]["SELL_SOON_BAND"]
+    hard = [s for s in CFG["samples"] if s["id"].startswith("hard")]
+    assert len(hard) >= 2
+    for s in hard:
+        probs = dict(zip(CFG["classes"], s["keras_probs"]))
+        rot = sum(p for c, p in probs.items() if c.startswith("rotten"))
+        top = max(probs, key=probs.get)
+        assert lo <= rot < hi
+        assert top.split("_")[1] == s["truth"].split("_")[1]
