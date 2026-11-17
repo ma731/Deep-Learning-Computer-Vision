@@ -437,6 +437,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .launch .ar{font-size:1.15rem;transition:transform .3s var(--eout)}
 .launch:hover{box-shadow:0 0 46px -4px var(--glow)} .launch:hover .ar{transform:translateX(5px)}
 .launch:active{transform:scale(.97)}
+.launch.alt{color:var(--ink);background:transparent;border-color:var(--glow);box-shadow:none;margin-left:.6rem}
+@media (max-width:560px){.launch.alt{margin:.7rem 0 0}}
 
 /* footer / team */
 .footer{margin-top:3.5rem;border-top:1px solid var(--line);padding-top:2.4rem}
@@ -490,6 +492,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 <!-- CHROME -->
 <a class="wordmark" id="toTop"><span class="ap"></span>Fresh<b>Guard</b></a>
 <div class="topbar">
+  <a class="pill to-demo" id="toDemo" href="demo/index.html">Try the demo</a>
   <button class="pill" id="presentBtn" title="Toggle presenter mode (P)">Present</button>
 </div>
 <nav class="rail" id="rail" aria-label="Chapters"></nav>
@@ -1014,6 +1017,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 
     <div class="demo-cta reveal r4">
       <a class="launch magnetic" href="http://localhost:8000" target="_blank" rel="noopener"><span class="dot"></span>Launch the ops console<span class="ar">→</span></a>
+      <a class="launch alt magnetic to-demo" href="demo/index.html">Try the browser demo<span class="ar">→</span></a>
       <p class="note" style="margin-top:.9rem">Opens the <b>live</b> app at <span class="cy">localhost:8000</span> (FastAPI backend). Make sure the server is running (<span class="cy">uvicorn</span>) so the camera + predictions work.</p>
     </div>
 
@@ -1485,6 +1489,10 @@ if(HAS_GSAP && document.fonts && document.fonts.ready){ document.fonts.ready.the
 window.addEventListener('load',function(){ if(HAS_GSAP) ScrollTrigger.refresh(); });
 
 })();
+</script>
+<script>
+// the browser demo sits in demo/ next to this file; on the public site this page is story.html beside the demo
+document.querySelectorAll('a.to-demo').forEach(function (a) { if (/story\.html$/.test(location.pathname)) a.href = './'; });
 </script>
 </body>
 </html>
