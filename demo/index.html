@@ -70,6 +70,8 @@ h1{font:600 clamp(2rem,5vw,3.1rem)/1.05 var(--serif);letter-spacing:-.02em;margi
 @media (max-width:480px){.bz-live{grid-template-columns:96px minmax(0,1fr);gap:12px}.bz-live img{width:96px;height:96px}}
 .bz-row b{color:var(--ink);font-size:16px}
 .bz-row input{flex:1 1 220px;accent-color:var(--st-sell)}
+.bz-add{margin-top:10px}
+.bz-add[disabled]{opacity:.5;cursor:default}
 .truth{font:500 12.5px var(--mono);color:var(--st-sell);margin-bottom:10px}
 @media (prefers-reduced-motion:reduce){.meter .pin{transition:none}}
 .stage{position:relative;border-radius:12px;overflow:hidden;background:var(--well);aspect-ratio:4/3;display:grid;place-items:center}
@@ -165,6 +167,7 @@ table.parity td,table.parity th{border-bottom:1px solid var(--line);padding:4px 
           </div>
           <label class="bz-row"><span>Brown spots: <b id="bzN">0</b></span>
             <input type="range" id="bz" min="0" max="30" step="1" value="0" disabled aria-describedby="bzHint"></label>
+          <button type="button" class="btn bz-add" id="bzAdd" disabled>Add it to the list and send it down the belt</button>
           <p class="hint" id="bzHint">Works on apples, oranges and peppers. On the other kinds the model hardly reacts to painted spots:
           it learned other signs of rot for those (mould, wrinkles, soft dark patches).</p>
         </div>
@@ -449,7 +452,7 @@ function bruiseTool() {
   const picks = ["orange", "apple", "bellpepper"].map((k) => cfg.samples.find((s) => s.id === "fresh_" + k)).filter(Boolean);
   if (!picks.length) return;
   const slider = $("bz"), pickBox = $("bzPick");
-  let paint = null, item = "", timer = 0, ticket = 0;
+  let paint = null, item = "", truth = "", timer = 0, ticket = 0;
   const go = async (follow) => {
     const n = +slider.value, url = paint(n), mine = ++ticket;
     $("bzN").textContent = n;
@@ -470,13 +473,25 @@ function bruiseTool() {
     b.innerHTML = `<img src="${s.photo}" alt="" loading="lazy"><span>${item}</span>`;
     const name = item;
     b.onclick = async (ev) => {
-      item = name; slider.value = 0; $("bzN").textContent = 0; paint = bruiser(await loadImg(s.photo));
+      item = name; truth = s.truth; slider.value = 0; $("bzN").textContent = 0; paint = bruiser(await loadImg(s.photo));
       [...pickBox.children].forEach((x) => x.classList.toggle("on", x === b));
-      slider.disabled = false; go(ev.isTrusted);
+      slider.disabled = false; $("bzAdd").disabled = false; go(ev.isTrusted);
     };
     pickBox.appendChild(b);
   }
   slider.oninput = () => { $("bzN").textContent = slider.value; clearTimeout(timer); timer = setTimeout(() => go(true), 120); };
+  // keep the one you made: it joins the hard calls and rides the belt like the other photos
+  $("bzAdd").onclick = async () => {
+    const n = +slider.value, url = paint(n), b = document.createElement("button");
+    const note = n ? `Edited: ${n} brown spot${n === 1 ? "" : "s"} painted on a fresh ${item} by this page.` : `The fresh ${item}, as photographed.`;
+    b.type = "button"; b.setAttribute("aria-pressed", "false"); b.dataset.truth = truth;
+    b.setAttribute("aria-label", `Your ${item} with ${n} brown spots`);
+    b.innerHTML = `<img src="${url}" alt=""><span>${item} +${n}</span>`;
+    b.onclick = async (ev) => run(await loadImg(url), url, null, b, ev.isTrusted, note);
+    $("hard").appendChild(b);
+    b.scrollIntoView({block: "nearest", inline: "nearest"});
+    run(await loadImg(url), url, null, b, true, note);
+  };
   const cols = $("zones").style.gridTemplateColumns;
   $("bzZones").style.gridTemplateColumns = cols; $("bzTicks").style.gridTemplateColumns = cols;
   $("bruiseBox").hidden = false;
